@@ -1,0 +1,23 @@
+# LocalGoofish 全局配置（草稿版 —— T03 需求单将完善校验与硬顶逻辑）
+schedule:
+  time: "08:00"            # 每日执行时刻
+  randomize_minutes: 15    # 启动随机化窗口（±分钟）
+limits:
+  page_delay_seconds: [5, 15]   # 相邻页面请求随机延时区间（秒）
+  max_pages_per_keyword: 3      # 单关键词页数上限（代码硬顶 50）
+  max_pages_per_day: 300        # 单日总页数上限
+ranking:
+  topn_overall: 50              # 总榜 TopN
+  topn_per_keyword: 20          # 分类榜 TopN
+  topn_rising: 20               # 热度飙升榜 TopN
+  weights:                      # 畅销度评分权重（需求文档第 8 节）
+    want_count: 0.40
+    view_count: 0.20
+    want_delta_7d: 0.25
+    view_delta_7d: 0.15
+report:
+  retain_days: 90
+paths:
+  data_dir: data
+  reports_dir: reports
+  logs_dir: logs

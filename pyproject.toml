@@ -1,0 +1,15 @@
+[project]
+name = "localgoofish"
+version = "0.1.0"
+description = "闲鱼畅销商品排行榜自动化工具（LocalGoofish）"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.49",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]

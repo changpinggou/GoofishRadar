@@ -1,0 +1,10 @@
+# 关键词任务列表（草稿版 —— T03 需求单将完善字段与校验）
+tasks:
+  - keyword: "iPhone"
+    enabled: true
+    max_pages: 3
+    sort: "most_want"      # 默认按“最多想要”排序
+  - keyword: "Switch游戏机"
+    enabled: true
+    max_pages: 3
+    sort: "most_want"
