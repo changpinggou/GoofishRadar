@@ -31,6 +31,9 @@ uv venv && uv pip install -p .venv/bin/python -e "."
 
 # 5. 分析字段核对结果
 .venv/bin/python scripts/poc/poc3_analyze.py
+
+# 6. 真实采集冒烟（T04，弹出浏览器窗口，登录态必须有效）
+.venv/bin/python scripts/smoke_t04.py --keywords iPhone --pages 1
 ```
 
 > 合规约束（见需求文档 FR-10 / R1 / R4）：仅采集登录后公开可见页面数据；全局限速、单日页数硬上限；

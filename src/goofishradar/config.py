@@ -19,7 +19,8 @@ from .paths import CONFIG_DIR, DATA_DIR, LOG_DIR, REPORTS_DIR, ROOT
 
 HARD_MAX_PAGES_PER_KEYWORD = 50   # 代码硬顶：单关键词页数（FR-10）
 HARD_MAX_PAGES_PER_DAY = 300      # 代码硬顶：单日总页数（FR-10）
-ALLOWED_SORTS = ("most_want", "comprehensive", "newest", "price_asc", "price_desc")
+ALLOWED_SORTS = ("most_want", "comprehensive", "recent_active", "newest",
+                 "price_asc", "price_desc")
 
 _HHMM = re.compile(r"^(\d{1,2}):(\d{2})$")
 

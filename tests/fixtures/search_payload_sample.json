@@ -1,0 +1,55 @@
+{
+  "api": "mtop.taobao.idlemtopsearch.pc.search",
+  "comment": "T04 离线解析测试夹具：按 T01 实测结构人工构造（5 条原始条目：4 唯一 + 1 重复，覆盖 无想要标签/无标签/已售/缺字段 边界）",
+  "data": {
+    "resultList": [
+      {"card": {
+        "itemId": "1001",
+        "title": "iPhone 12 Pro 128G 金色 国行",
+        "area": "天津",
+        "price": [{"type": "sign", "text": "¥"}, {"type": "integer", "text": "833"}],
+        "picUrl": "http://img.alicdn.com/bao/uploaded/i3/2221425617053/O1CN01xxx.jpg",
+        "userNickName": "蒲公英苹果店",
+        "detailParams": {"itemId": "1001", "soldPrice": "833", "userNick": "蒲公英苹果店"},
+        "fishTags": {
+          "r2": {"tagList": [{"data": {"content": "几乎全新"}}, {"data": {"content": "Apple/苹果"}}]},
+          "r3": {"tagList": [{"data": {"content": "5人想要"}}]},
+          "r4": {"tagList": [{"data": {"content": "卖家信用极好"}}]}
+        }
+      }},
+      {"card": {
+        "itemId": "1002",
+        "title": "Switch OLED 日版 充新",
+        "area": "上海",
+        "picUrl": "http://img.alicdn.com/bao/uploaded/i1/3333333333333/O1CN02yyy.jpg",
+        "userNickName": "游戏铺子",
+        "detailParams": {"itemId": "1002", "soldPrice": "1299"},
+        "fishTags": {
+          "r2": {"tagList": [{"data": {"content": "99新"}}]}
+        }
+      }},
+      {"card": {
+        "itemId": "1003",
+        "title": "乐高哈利波特城堡 71043 绝版",
+        "area": "北京",
+        "picUrl": "http://img.alicdn.com/bao/uploaded/i2/4444444444444/O1CN03zzz.jpg",
+        "detailParams": {"itemId": "1003", "soldPrice": "2100"},
+        "fishTags": {
+          "r3": {"tagList": [{"data": {"content": "已售出"}}]}
+        }
+      }},
+      {"card": {
+        "itemId": "1004",
+        "title": "佳能 EOS R50 微单相机",
+        "detailParams": {"itemId": "1004", "soldPrice": "not_available"}
+      }},
+      {"card": {
+        "itemId": "1001",
+        "title": "iPhone 12 Pro 128G 金色 国行",
+        "area": "天津",
+        "picUrl": "http://img.alicdn.com/bao/uploaded/i3/2221425617053/O1CN01xxx.jpg",
+        "detailParams": {"itemId": "1001", "soldPrice": "833"}
+      }}
+    ]
+  }
+}

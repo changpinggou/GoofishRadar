@@ -48,6 +48,11 @@ class SessionExpiredError(RuntimeError):
     """会话失效。采集任务（T04/T08）应捕获后终止本次任务并以退出码 1 结束。"""
 
 
+def detect_risk_block(text: str) -> bool:
+    """页面文本是否命中风控/验证页特征（session 与 collector 共用）。"""
+    return any(m in (text or "") for m in RISK_MARKERS)
+
+
 def evaluate_session(
     cookie_names: Iterable[str], login_text_visible: bool, risk_blocked: bool = False,
 ) -> SessionVerdict:
@@ -229,7 +234,7 @@ class SessionManager:
                 "() => document.body ? document.body.innerText.slice(0, 3000) : ''")
         except Exception:
             body = ""
-        risk_blocked = any(m in body for m in RISK_MARKERS)
+        risk_blocked = detect_risk_block(body)
         cookie_names = {c["name"] for c in ctx.cookies()}
         return evaluate_session(cookie_names, _login_text_visible(page), risk_blocked)
 
