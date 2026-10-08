@@ -5,7 +5,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+CONFIG_DIR = ROOT / "config"
 DATA_DIR = ROOT / "data"
+REPORTS_DIR = ROOT / "reports"
 USER_DATA_DIR = DATA_DIR / "user_data"      # Playwright 持久化会话目录（敏感，gitignored）
 LOG_DIR = ROOT / "logs"
 

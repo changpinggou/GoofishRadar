@@ -1,23 +1,36 @@
-# GoofishRadar 全局配置（草稿版 —— T03 需求单将完善校验与硬顶逻辑）
+# =====================================================================
+# GoofishRadar 全局配置（T03）
+# 改本文件即可生效，无需改代码；非法值会在启动时（config-check / run）报错
+# 并指明具体字段。带「硬顶」的项超限后自动截断并告警，见各条注释。
+# =====================================================================
+
 schedule:
-  time: "08:00"            # 每日执行时刻
-  randomize_minutes: 15    # 启动随机化窗口（±分钟）
+  time: "08:00"            # 每日默认执行时刻（HH:MM）
+  weekday_time: "08:00"    # 工作日执行时刻（可选，缺省用 time）
+  weekend_time: "08:00"    # 周末执行时刻（可选，缺省用 time）
+  randomize_minutes: 15    # 启动随机化窗口（±分钟，错峰用，0–120）
+
 limits:
-  page_delay_seconds: [5, 15]   # 相邻页面请求随机延时区间（秒）
-  max_pages_per_keyword: 3      # 单关键词页数上限（代码硬顶 50）
-  max_pages_per_day: 300        # 单日总页数上限
+  # 相邻两次页面请求的随机延时区间（秒）。T01 实测单页稳定耗时 6–9s，
+  # 默认 8–20（原 PRD 草案 5–15 偏紧，已按实测修订）；最小值 < 5 会收到风控告警。
+  page_delay_seconds: [8, 20]
+  max_pages_per_keyword: 3   # 单关键词采集页数；代码硬顶 50，超限自动截断并告警
+  max_pages_per_day: 300     # 单日总页数；代码硬顶 300，超限自动截断并告警
+
 ranking:
-  topn_overall: 50              # 总榜 TopN
-  topn_per_keyword: 20          # 分类榜 TopN
-  topn_rising: 20               # 热度飙升榜 TopN
-  weights:                      # 畅销度评分权重（需求文档第 8 节）
-    want_count: 0.40
-    view_count: 0.20
-    want_delta_7d: 0.25
-    view_delta_7d: 0.15
+  topn_overall: 50           # 总榜 TopN
+  topn_per_keyword: 20       # 分关键词榜 TopN
+  topn_rising: 20            # 热度飙升榜 TopN
+  weights:                   # 畅销度评分权重（需求文档第 8 节），四项之和必须 = 1.0
+    want_count: 0.40         # 想要数绝对值
+    view_count: 0.20         # 浏览量绝对值
+    want_delta_7d: 0.25      # 想要数 7 日增量
+    view_delta_7d: 0.15      # 浏览量 7 日增量
+
 report:
-  retain_days: 90
-paths:
+  retain_days: 90            # 报告/快照保留天数
+
+paths:                       # 相对路径基于项目根目录解析；也可用绝对路径
   data_dir: data
   reports_dir: reports
   logs_dir: logs

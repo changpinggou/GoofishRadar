@@ -1,10 +1,15 @@
-# 关键词任务列表（草稿版 —— T03 需求单将完善字段与校验）
+# GoofishRadar 关键词任务列表
+# 字段说明：keyword 关键词 / enabled 启用开关 / max_pages 采集页数(硬顶50)
+#           sort 排序(most_want|comprehensive|newest|price_asc|price_desc)
+#           可选筛选：price_min/price_max/stuff(成色)/location(所在地)
 tasks:
-  - keyword: "iPhone"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"      # 默认按“最多想要”排序
-  - keyword: "Switch游戏机"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"
+- keyword: iPhone
+  enabled: true
+  max_pages: 3
+  sort: most_want
+  price_min: 500.0
+  price_max: 8000.0
+- keyword: Switch游戏机
+  enabled: true
+  max_pages: 3
+  sort: most_want

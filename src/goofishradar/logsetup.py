@@ -18,7 +18,7 @@ _RE_COOKIE_KV = re.compile(
     re.IGNORECASE,
 )
 _RE_COOKIE_HEADER = re.compile(r"\bCookie\s*:\s*\S+", re.IGNORECASE)
-_RE_LONG_TOKEN = re.compile(r"\b[A-Za-z0-9_/+=]{40,}\b")  # 兜底：40+ 位疑似令牌串
+_RE_LONG_TOKEN = re.compile(r"\b[A-Za-z0-9_+=]{40,}\b")  # 兜底：40+ 位连续疑似令牌（不含 /，避免误伤文件路径）
 
 def redact(text: str) -> str:
     """脱敏日志文本：Cookie 键值对 / Cookie 头 / 超长令牌串一律打码。"""
