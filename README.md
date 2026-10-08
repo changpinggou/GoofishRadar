@@ -17,13 +17,19 @@
 uv venv && uv pip install -p .venv/bin/python -e "."
 .venv/bin/playwright install chromium
 
-# 2. PoC（T01）：免登录首页探测
+# 2. 会话管理（T02）：扫码登录一次并持久化（弹出浏览器窗口，用闲鱼/淘宝 App 扫码）
+.venv/bin/goofishradar login
+
+#    校验会话有效性：有效 exit 0；失效 exit 1（写告警日志 + data/SESSION_EXPIRED 标记）
+.venv/bin/goofishradar check
+
+# 3. PoC（T01）：免登录首页探测
 .venv/bin/python scripts/poc/poc1_homepage_probe.py
 
-# 3. PoC（T01）：扫码登录 + 搜索字段核对（会弹出浏览器窗口，请用闲鱼/淘宝 App 扫码）
+# 4. PoC（T01）：搜索字段核对（会弹出浏览器窗口）
 .venv/bin/python scripts/poc/poc2_login_search_probe.py --keyword "iPhone"
 
-# 4. 分析字段核对结果
+# 5. 分析字段核对结果
 .venv/bin/python scripts/poc/poc3_analyze.py
 ```
 

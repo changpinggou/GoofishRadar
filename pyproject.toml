@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "goofishradar"
 version = "0.1.0"
@@ -9,7 +13,17 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+goofishradar = "goofishradar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
