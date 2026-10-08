@@ -1,4 +1,4 @@
-# LocalGoofish 全局配置（草稿版 —— T03 需求单将完善校验与硬顶逻辑）
+# GoofishRadar 全局配置（草稿版 —— T03 需求单将完善校验与硬顶逻辑）
 schedule:
   time: "08:00"            # 每日执行时刻
   randomize_minutes: 15    # 启动随机化窗口（±分钟）

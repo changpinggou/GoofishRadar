@@ -1,7 +1,7 @@
 [project]
-name = "localgoofish"
+name = "goofishradar"
 version = "0.1.0"
-description = "闲鱼畅销商品排行榜自动化工具（LocalGoofish）"
+description = "GoofishRadar — 闲鱼畅销商品排行榜自动化工具（闲鱼热卖雷达）"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
