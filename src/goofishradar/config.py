@@ -150,12 +150,26 @@ class PathsCfg:
 
 
 @dataclass(slots=True)
+class NotifyCfg:
+    """告警推送配置（T12）：留空即禁用对应渠道，全部留空时降级为本地标记。"""
+    webhook_url: str = ""          # 钉钉/飞书群机器人 Webhook 地址
+    webhook_channel: str = "feishu"
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""        # 建议留空，运行时经环境变量 GOOFISH_SMTP_PASSWORD 注入
+    smtp_to: str = ""
+    smtp_use_tls: bool = True
+
+
+@dataclass(slots=True)
 class Settings:
     schedule: ScheduleCfg = field(default_factory=ScheduleCfg)
     limits: LimitsCfg = field(default_factory=LimitsCfg)
     ranking: RankingCfg = field(default_factory=RankingCfg)
     report: ReportCfg = field(default_factory=ReportCfg)
     paths: PathsCfg = field(default_factory=PathsCfg)
+    notify: NotifyCfg = field(default_factory=NotifyCfg)
 
 
 @dataclass(slots=True)
@@ -182,7 +196,9 @@ SETTINGS_KEYS = {
     "ranking": {"topn_overall", "topn_per_keyword", "topn_rising", "weights"},
     "report": {"retain_days"},
     "paths": {"data_dir", "reports_dir", "logs_dir"},
+    "notify": {"webhook_url", "webhook_channel", "smtp"},
 }
+SMTP_KEYS = {"host", "port", "user", "password", "to", "use_tls"}
 WEIGHT_KEYS = {"want_count", "view_count", "want_delta_7d", "view_delta_7d"}
 _WEIGHT_FIELD = {
     "want_count": "weight_want_count", "view_count": "weight_view_count",
@@ -287,6 +303,42 @@ def _load_paths(sec: dict) -> PathsCfg:
     return cfg
 
 
+def _load_notify(sec: dict, warnings: list[str]) -> NotifyCfg:
+    cfg = NotifyCfg()
+
+    def _optional_str(mapping: dict, key: str, where: str) -> str:
+        """空字符串 = 显式禁用该渠道（合法）；非空则必须为有效字符串。"""
+        v = mapping[key]
+        if isinstance(v, str) and not v.strip():
+            return ""
+        return _as_str(v, where)
+
+    if "webhook_url" in sec:
+        cfg.webhook_url = _optional_str(sec, "webhook_url", "notify.webhook_url")
+    if "webhook_channel" in sec:
+        ch = _as_str(sec["webhook_channel"], "notify.webhook_channel")
+        _expect(ch in ("feishu", "dingtalk"),
+                f"notify.webhook_channel: 允许 feishu|dingtalk，得到 {ch!r}")
+        cfg.webhook_channel = ch
+    smtp = sec.get("smtp", {})
+    _expect(isinstance(smtp, dict), f"notify.smtp: 应为键值映射，得到 {smtp!r}")
+    for k in smtp:
+        if k not in SMTP_KEYS:
+            warnings.append(f"notify.smtp.{k}: 未知配置项（可能拼写错误），已忽略")
+    if "host" in smtp:
+        cfg.smtp_host = _optional_str(smtp, "host", "notify.smtp.host")
+    if "port" in smtp:
+        cfg.smtp_port = _as_int(smtp["port"], "notify.smtp.port")
+        _expect(1 <= cfg.smtp_port <= 65535,
+                f"notify.smtp.port: 端口应在 1–65535，得到 {cfg.smtp_port}")
+    for k in ("user", "password", "to"):
+        if k in smtp:
+            setattr(cfg, f"smtp_{k}", str(smtp[k]))
+    if "use_tls" in smtp:
+        cfg.smtp_use_tls = _as_bool(smtp["use_tls"], "notify.smtp.use_tls")
+    return cfg
+
+
 def load_settings(path: Path | None = None) -> tuple[Settings, list[str]]:
     """加载全局配置。文件缺失 → 内置默认值 + 告警；非法 → ConfigError。"""
     path = Path(path) if path else CONFIG_DIR / "settings.yaml"
@@ -307,6 +359,7 @@ def load_settings(path: Path | None = None) -> tuple[Settings, list[str]]:
             _section(data, "report", warnings).get("retain_days", 90),
             "report.retain_days")),
         paths=_load_paths(_section(data, "paths", warnings)),
+        notify=_load_notify(_section(data, "notify", warnings), warnings),
     ), warnings
 
 

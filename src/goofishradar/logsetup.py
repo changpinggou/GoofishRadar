@@ -19,13 +19,26 @@ _RE_COOKIE_KV = re.compile(
 )
 _RE_COOKIE_HEADER = re.compile(r"\bCookie\s*:\s*\S+", re.IGNORECASE)
 _RE_LONG_TOKEN = re.compile(r"\b[A-Za-z0-9_+=]{40,}\b")  # 兜底：40+ 位连续疑似令牌（不含 /，避免误伤文件路径）
+_RE_PHONE = re.compile(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)")  # 大陆手机号：保留前3后4
+
 
 def redact(text: str) -> str:
-    """脱敏日志文本：Cookie 键值对 / Cookie 头 / 超长令牌串一律打码。"""
+    """脱敏日志文本：Cookie 键值对 / Cookie 头 / 超长令牌串 / 手机号一律打码。"""
     text = _RE_COOKIE_KV.sub(lambda m: f"{m.group(1)}=<REDACTED>", text)
     text = _RE_COOKIE_HEADER.sub("Cookie: <REDACTED>", text)
     text = _RE_LONG_TOKEN.sub("<TOKEN>", text)
+    text = _RE_PHONE.sub(r"\1****\2", text)
     return text
+
+
+def log_event(log: logging.Logger, event: str, **fields) -> None:
+    """结构化关键事件（T12 任务 1）：统一 EVENT[名称] 标记，便于 grep 检索。
+
+    例：log_event(log, "keyword_done", keyword="iPhone", items=90)
+      → INFO EVENT[keyword_done] keyword=iPhone items=90
+    """
+    parts = " ".join(f"{k}={v}" for k, v in fields.items())
+    log.info("EVENT[%s]%s%s", event, " " if parts else "", parts)
 
 
 class RedactFilter(logging.Filter):

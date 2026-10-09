@@ -149,7 +149,6 @@ def _cmd_schedule(args, log) -> int:
 def _cmd_status(log) -> int:
     from .pipeline import recent_status
     from .storage import Store
-    from .paths import DATA_DIR
     settings = _load_or_exit(log)
     store = Store(settings.paths.data_dir / "goofishradar.db")
     try:
@@ -162,14 +161,42 @@ def _cmd_status(log) -> int:
     if not rows:
         print("  （暂无运行记录）")
     else:
-        print(f"  {'日期':<12}{'关键词':<16}{'结果':<14}{'页(成/试)':<10}{'条数':<8}{'耗时':<10}")
+        # 按日聚合 + 逐关键词明细（T12 任务 2：含报告路径与告警状态）
+        by_day: dict[str, list[dict]] = {}
         for r in rows:
-            print(f"  {r['run_date']:<12}{r['keyword']:<16}{r['result']:<14}"
-                  f"{r['pages_ok']}/{r['pages_attempted']:<8}"
-                  f"{r['items_total']:<8}"
-                  f"{(str(r['duration_seconds']) + 's') if r['duration_seconds'] else '—':<10}")
-            if r["error"]:
-                print(f"    └─ {r['error'][:80]}")
+            by_day.setdefault(r["run_date"], []).append(r)
+        for day in sorted(by_day, reverse=True):
+            day_rows = by_day[day]
+            ok = sum(1 for r in day_rows if r["result"] == "ok")
+            items = sum(r["items_total"] or 0 for r in day_rows)
+            report = settings.paths.reports_dir / day / "report.html"
+            report_mark = "报告✓" if report.exists() else "报告✗"
+            print(f"  ▍{day}  任务 {ok}/{len(day_rows)} ok  采集 {items} 条  {report_mark}")
+            for r in sorted(day_rows, key=lambda x: x["keyword"]):
+                mark = {"ok": "✓", "failed": "✗", "risk_blocked": "⚠"}.get(
+                    r["result"], "?")
+                print(f"    {mark} {r['keyword']:<14} {r['result']:<14}"
+                      f"页 {r['pages_ok']}/{r['pages_attempted']}"
+                      f"  {r['items_total'] or 0} 条"
+                      f"  {(str(r['duration_seconds']) + 's') if r['duration_seconds'] else '—'}")
+                if r["error"]:
+                    print(f"      └─ {r['error'][:80]}")
+
+    # 告警状态（T12：三处标记文件）
+    from .paths import DATA_DIR
+    alerts = []
+    for name in ("ALERT", "SESSION_EXPIRED", "RISK_COOLDOWN_UNTIL"):
+        p = DATA_DIR / name
+        if p.exists():
+            first = p.read_text(encoding="utf-8").splitlines()[:1]
+            alerts.append(f"{name}（{(first[0] if first else '').strip()[:60]}）")
+    print("\n告警标记：")
+    if alerts:
+        for a in alerts:
+            print(f"  ⚠ {a}")
+    else:
+        print("  无")
+
     print(f"\n库内：商品 {counts['items']} | 快照 {counts['snapshots']} | "
           f"来源关系 {counts['item_keywords']} | 运行记录 {counts['runs']}")
     return 0

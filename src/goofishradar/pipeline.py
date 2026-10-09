@@ -17,7 +17,8 @@ from pathlib import Path
 
 from .collector import KeywordRunResult, SearchCollector
 from .config import Settings, enabled_tasks
-from .logsetup import get_logger
+from .logsetup import get_logger, log_event
+from .notify import Alert, send_alerts
 from .paths import DATA_DIR
 from .report import generate_report
 from .ranking import score_day_from_store
@@ -97,9 +98,11 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
     today = datetime.now().strftime("%Y-%m-%d")
     summary = RunSummary(date=today,
                          started_at=datetime.now().isoformat(timespec="seconds"))
+    alerts: list[Alert] = []          # T12：本次运行收集的告警，末尾统一推送
     if retry_backoff_seconds is None:
         retry_backoff_seconds = settings.limits.retry_backoff_seconds
     settings.paths.ensure()
+    log_event(log, "task_start", date=today, force=force)
 
     # ---- 0. 风控冷却门控（T11）：冷却期内拒绝发起任何网络请求 ----
     risk = RiskControl(settings.paths.data_dir,
@@ -110,6 +113,10 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
         summary.error = (f"风控冷却中（至 {until:%H:%M}），"
                          f"本次跳过全部网络请求（冷却 {settings.limits.risk_cooldown_minutes} 分钟档）")
         log.warning("ALERT: %s", summary.error)
+        alerts.append(Alert("critical", "risk_blocked", summary.error, today))
+        send_alerts(alerts, settings, log)
+        log_event(log, "task_end", date=today, exit=summary.exit_code(),
+                  reason="risk_cooldown")
         return summary
 
     store = Store(settings.paths.data_dir / "goofishradar.db")
@@ -125,11 +132,23 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
                 summary.aborted_by_risk = True
                 summary.error = f"会话检查命中风控拦截：{verdict.reason}（已进入冷却）"
                 log.error("ALERT: %s", summary.error)
+                alerts.append(Alert("critical", "risk_blocked",
+                                    summary.error, today))
+                send_alerts(alerts, settings, log)
+                log_event(log, "session_expired", reason="risk_blocked")
+                log_event(log, "task_end", date=today, exit=summary.exit_code(),
+                          reason="risk_blocked")
                 return summary
             if not verdict.valid:
                 summary.session_invalid = True
                 summary.error = f"会话检查未通过：{verdict.reason}"
                 log.error("%s —— 请运行 goofishradar login 重新扫码", summary.error)
+                alerts.append(Alert("critical", "session_expired",
+                                    summary.error, today))
+                send_alerts(alerts, settings, log)
+                log_event(log, "session_expired", reason=verdict.reason)
+                log_event(log, "task_end", date=today, exit=summary.exit_code(),
+                          reason="session_invalid")
                 return summary
             log.info("会话有效")
 
@@ -197,7 +216,21 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
                     error=r.error)
 
         # ---- 连续失败告警（T09 任务 5：连续 2 天全败 → data/ALERT + 日志）----
-        _consecutive_failure_alert(store, today, log)
+        if _consecutive_failure_alert(store, today, log):
+            alerts.append(Alert(
+                "critical", "consecutive_failures",
+                f"{yesterday_str(today)} 与 {today} 连续两天任务全部失败", today))
+
+        # ---- 数据量/解析失败率告警（T12 任务 3）----
+        quality = store.quality_stats(today)
+        if 0 < quality.snapshots < 100:
+            alerts.append(Alert(
+                "warning", "low_volume",
+                f"当日采集 {quality.snapshots} 条 < 100 条阈值", today))
+        if quality.pages_attempted and (quality.pages_degraded / quality.pages_attempted) > 0.2:
+            alerts.append(Alert(
+                "warning", "high_parse_failure",
+                f"解析失败率 {quality.pages_degraded}/{quality.pages_attempted} > 20%", today))
 
         # ---- 4. 评分 + 报告（采集部分失败也照常出报告，标注数据完整性）----
         extra_notes: list[str] = []
@@ -215,10 +248,15 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
                 "weights_applied": rankings["weights_applied"],
                 "extra_notes": extra_notes,
             }
+            log_event(log, "report_done", date=today, pool=len(rankings["overall"]))
         except Exception as exc:
             summary.report_failed = True
             summary.error = f"报告生成失败：{exc}"
             log.error(summary.error)
+
+        # ---- 告警推送（T12：未配置渠道时降级 data/ALERT 本地标记）----
+        if alerts:
+            send_alerts(alerts, settings, log)
 
         # ---- 5. 汇总 ----
         if summary.failed_keywords:
@@ -229,9 +267,16 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
                  len(summary.ok_keywords), len(summary.failed_keywords),
                  summary.total_items,
                  "已生成" if not summary.report_failed else "失败")
+        log_event(log, "task_end", date=today, exit=summary.exit_code(),
+                  ok=len(summary.ok_keywords), failed=len(summary.failed_keywords),
+                  items=summary.total_items)
         return summary
     finally:
         store.close()
+
+
+def yesterday_str(today: str) -> str:
+    return (datetime.fromisoformat(today) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def _consecutive_failure_alert(store: Store, today: str, log) -> bool:

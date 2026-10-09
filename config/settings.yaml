@@ -36,3 +36,14 @@ paths:                       # 相对路径基于项目根目录解析；也可�
   data_dir: data
   reports_dir: reports
   logs_dir: logs
+
+notify:                      # 告警推送（T12）：渠道留空即禁用；全部禁用时降级为本地标记 data/ALERT
+  webhook_url: ""            # 钉钉/飞书群机器人 Webhook 地址
+  webhook_channel: "feishu"  # feishu | dingtalk
+  smtp:                      # 邮件渠道（host 留空即禁用）
+    host: ""
+    port: 465
+    user: ""
+    password: ""             # 安全建议：保持留空，运行时经环境变量 GOOFISH_SMTP_PASSWORD 注入
+    to: ""                   # 收件邮箱
+    use_tls: true
