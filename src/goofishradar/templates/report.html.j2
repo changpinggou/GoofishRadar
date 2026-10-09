@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoofishRadar 每日畅销榜 · {{ date }}</title>
+<style>
+  :root { --ink:#1f2329; --muted:#86909c; --line:#e5e6eb; --brand:#ff7900; --up:#00b42a; --bg:#f7f8fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap { max-width:1080px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin-bottom:16px; }
+  .caliber { background:#fff7e8; border:1px solid #ffd591; border-radius:8px; padding:10px 14px; margin:0 0 20px; }
+  .caliber strong { color:#ad6800; }
+  .caliber ul { margin:6px 0 0; padding-left:18px; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .card { flex:1 1 150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .card .num { font-size:22px; font-weight:600; }
+  .card .lbl { color:var(--muted); font-size:12px; }
+  h2 { font-size:17px; margin:28px 0 10px; border-left:4px solid var(--brand); padding-left:10px; }
+  .note { color:var(--muted); background:#fff; border:1px dashed var(--line); border-radius:8px; padding:10px 14px; }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  th, td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { background:#f2f3f5; white-space:nowrap; user-select:none; }
+  th[data-key] { cursor:pointer; }
+  th[data-key]:hover { color:var(--brand); }
+  tr:hover td { background:#fffaf5; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .title a { color:var(--ink); text-decoration:none; }
+  .title a:hover { color:var(--brand); }
+  .title .kw { color:var(--muted); font-size:12px; }
+  .up { color:var(--up); font-size:12px; }
+  .sold { color:var(--muted); background:#f2f3f5; border-radius:4px; padding:0 6px; font-size:12px; }
+  .onsale { color:var(--up); font-size:12px; }
+  .muted { color:var(--muted); }
+  .kw-block { margin-bottom:22px; }
+  .kw-block h3 { margin:14px 0 8px; font-size:15px; }
+  footer { margin-top:32px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>GoofishRadar 每日畅销榜</h1>
+  <div class="sub">{{ date }} · 数据来源：闲鱼网页版公开数据（关键词采集）</div>
+
+  <div class="caliber">
+    <strong>口径说明（固定展示）</strong>
+    <ul>{% for c in caliber %}<li>{{ c }}</li>{% endfor %}</ul>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="num">{{ stats.snapshots }}</div><div class="lbl">当日采集条数</div></div>
+    <div class="card"><div class="num">{{ stats.items_total }}</div><div class="lbl">库内商品总数</div></div>
+    <div class="card"><div class="num">{{ stats.items_new_today }}</div><div class="lbl">当日新增商品</div></div>
+    <div class="card"><div class="num">{{ stats.pages_line }}</div><div class="lbl">采集页（成功/尝试）</div></div>
+    <div class="card"><div class="num">{{ stats.runs }}</div><div class="lbl">任务运行次数</div></div>
+  </div>
+
+  <h2>与昨日对比</h2>
+  {% if cmp.available %}
+  <div class="note">较 {{ cmp.yesterday }}：总榜新进 <b>{{ cmp.new|length }}</b> 个、跌出 <b>{{ cmp.dropped|length }}</b> 个。</div>
+    {% if cmp.new %}
+    <p style="margin:10px 0 4px"><b>新进总榜</b></p>
+    <table><tbody>
+      {% for it in cmp.new %}<tr><td class="title"><a href="{{ it.item_url }}" target="_blank">{{ it.title }}</a></td>
+      <td class="num">¥{{ it.price if it.price is not none else '—' }}</td><td class="num">{{ it.want_count }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% endif %}
+    {% if cmp.dropped %}
+    <p style="margin:14px 0 4px"><b>跌出总榜</b></p>
+    <table><tbody>
+      {% for it in cmp.dropped %}<tr><td class="title">{{ it.title or it.item_id }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% endif %}
+  {% else %}
+  <div class="note">{{ cmp.note }}</div>
+  {% endif %}
+
+  <h2>总榜 Top{{ overall|length }}</h2>
+  {% set rows = overall %}{% include '_table.j2' %}
+
+  <h2>分类榜（按关键词任务）</h2>
+  {% for kw, items in per_keyword.items() %}
+  <div class="kw-block">
+    <h3>{{ kw }} · Top{{ items|length }}</h3>
+    {% set rows = items %}{% include '_table.j2' %}
+  </div>
+  {% endfor %}
+
+  <h2>热度飙升榜</h2>
+  {% if rising %}
+    {% set rows = rising %}{% include '_table.j2' %}
+  {% else %}
+  <div class="note">{{ rising_note }}</div>
+  {% endif %}
+
+  <h2>数据质量</h2>
+  <div class="note">
+    字段完整率：{% for f, v in stats.completeness.items() %}{{ f }} {{ v }}%{% if not loop.last %} · {% endif %}{% endfor %}<br>
+    解析失败页：{{ stats.pages_degraded }} / {{ stats.pages_attempted }}{% if stats.quality_note %} · {{ stats.quality_note }}{% endif %}
+  </div>
+
+  <footer>GoofishRadar · 报告由本地自动化生成 · 仅个人研究用途，勿对外分发</footer>
+</div>
+
+<script>
+document.querySelectorAll('th[data-key]').forEach(function (th) {
+  th.addEventListener('click', function () {
+    var table = th.closest('table'), tb = table.querySelector('tbody');
+    var idx = Array.prototype.indexOf.call(th.parentNode.children, th);
+    var dir = th.dataset.dir === 'asc' ? -1 : 1;
+    th.dataset.dir = dir === 1 ? 'asc' : 'desc';
+    var rows = Array.prototype.slice.call(tb.rows);
+    rows.sort(function (a, b) {
+      var ca = a.cells[idx], cb = b.cells[idx];
+      var va = ca.dataset.v !== undefined ? parseFloat(ca.dataset.v) : parseFloat(ca.innerText.replace(/[^0-9.\-]/g, '')) || 0;
+      var vb = cb.dataset.v !== undefined ? parseFloat(cb.dataset.v) : parseFloat(cb.innerText.replace(/[^0-9.\-]/g, '')) || 0;
+      return dir * (va - vb);
+    });
+    rows.forEach(function (r) { tb.appendChild(r); });
+  });
+});
+</script>
+</body>
+</html>

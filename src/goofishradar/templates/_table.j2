@@ -1,0 +1,34 @@
+<table class="sortable">
+  <thead><tr>
+    <th>#</th>
+    <th>商品（点击标题进闲鱼）</th>
+    <th class="num" data-key="price">价格</th>
+    <th class="num" data-key="want">想要数(日增)</th>
+    <th class="num" data-key="view">浏览量</th>
+    <th class="num" data-key="score">评分</th>
+    <th>卖家</th>
+    <th>所在地</th>
+    <th>状态</th>
+  </tr></thead>
+  <tbody>
+  {% for s in rows %}
+    <tr>
+      <td>{{ s.rank }}</td>
+      <td class="title">
+        <a href="{{ s.item_url }}" target="_blank">{{ s.title or s.item_id }}</a>
+        <span class="kw">〔{{ s.source_keyword }}〕</span>
+      </td>
+      <td class="num" data-v="{{ s.price if s.price is not none else 0 }}">{{ '¥%g'|format(s.price) if s.price is not none else '—' }}</td>
+      <td class="num" data-v="{{ s.want_count or 0 }}">
+        {{ s.want_count if s.want_count is not none else '—' }}
+        {%- if s.delta_want_1d %} <span class="up">(+{{ s.delta_want_1d }})</span>{% endif %}
+      </td>
+      <td class="num" data-v="{{ s.view_count or 0 }}">{{ s.view_count if s.view_count is not none else '—' }}</td>
+      <td class="num" data-v="{{ s.score }}">{{ '%.4f'|format(s.score) }}</td>
+      <td>{{ s.seller_nick or '—' }}</td>
+      <td>{{ s.location or '—' }}</td>
+      <td>{% if s.status == '已售出' %}<span class="sold">已售出</span>{% else %}<span class="onsale">在售</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
