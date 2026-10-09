@@ -30,6 +30,12 @@ uv venv && uv pip install -p .venv/bin/python -e "."
 .venv/bin/goofishradar status
 .venv/bin/goofishradar report --date 2026-10-08
 
+# 4. 每日定时调度（T09）：每天 08:00±15 分钟自动运行（工作日/周末时刻可在配置区分）
+.venv/bin/goofishradar schedule install      # 安装/刷新（幂等）
+.venv/bin/goofishradar schedule status       # 查看安装状态与日志路径
+.venv/bin/goofishradar schedule uninstall    # 移除
+#    断点续采：当日已成功关键词重跑时自动跳过；run --force 强制重采
+
 # 3. PoC（T01）：免登录首页探测
 .venv/bin/python scripts/poc/poc1_homepage_probe.py
 

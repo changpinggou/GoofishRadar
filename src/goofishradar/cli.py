@@ -112,6 +112,39 @@ def _cmd_config_check(log) -> int:
     return 0
 
 
+def _cmd_schedule(args, log) -> int:
+    from pathlib import Path
+    from . import scheduler
+    if args.sched_command == "status":
+        exists = scheduler.plist_path().exists()
+        loaded = scheduler.is_loaded()
+        print(f"plist: {scheduler.plist_path()} {'存在' if exists else '不存在'}")
+        print(f"launchd 加载: {'是' if loaded else '否'}")
+        if exists:
+            import plistlib
+            data = plistlib.loads(scheduler.plist_path().read_bytes())
+            print(f"触发时刻: 每天 {data['StartCalendarInterval']['Hour']:02d}:"
+                  f"{data['StartCalendarInterval']['Minute']:02d}（实际执行由错峰入口二次校正）")
+            print(f"日志: {data['StandardOutPath']}")
+        return 0 if exists and loaded else 1
+
+    settings = _load_or_exit(log)
+    if args.sched_command == "install":
+        pfile = scheduler.install_schedule(settings)
+        hour, minute = scheduler.earliest_fire(settings)
+        log.info("调度已安装：%s（每天 %02d:%02d 拉起，错峰入口按工作日/周末时刻 ±%d 分钟执行）",
+                 pfile, hour, minute, settings.schedule.randomize_minutes)
+        log.info("launchd 日志: %s", Path(settings.paths.logs_dir) / "launchd_daily.log")
+        return 0
+    if args.sched_command == "uninstall":
+        if scheduler.uninstall_schedule():
+            log.info("调度已移除")
+            return 0
+        log.warning("未发现已安装的调度")
+        return 1
+    return 2
+
+
 def _cmd_status(log) -> int:
     from .pipeline import recent_status
     from .storage import Store
@@ -176,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     p_run = sub.add_parser("run", help="执行每日任务：会话检查→采集→入库→评分→报告")
     p_run.add_argument("--keyword", action="append", default=None,
                        help="仅运行指定关键词（可多次传入）")
+    p_run.add_argument("--force", action="store_true",
+                       help="忽略断点续采，重采当日已完成关键词")
     p_run.add_argument("--skip-session-check", action="store_true",
                        help=argparse.SUPPRESS)
 
@@ -184,11 +219,20 @@ def main(argv: list[str] | None = None) -> int:
     p_rep = sub.add_parser("report", help="基于已有库内数据（重）出报告")
     p_rep.add_argument("--date", default=None, help="报告日期（缺省=今天）")
 
+    p_sched = sub.add_parser("schedule", help="每日定时调度（macOS launchd）")
+    sched_sub = p_sched.add_subparsers(dest="sched_command", required=True)
+    sched_sub.add_parser("install", help="安装/刷新调度（幂等）")
+    sched_sub.add_parser("uninstall", help="移除调度")
+    sched_sub.add_parser("status", help="查看调度安装状态")
+
     args = parser.parse_args(argv)
     log = get_logger()
 
     if args.command == "keyword":
         return _cmd_keyword(args)
+
+    if args.command == "schedule":
+        return _cmd_schedule(args, log)
 
     if args.command == "config-check":
         return _cmd_config_check(log)
@@ -218,7 +262,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         from .pipeline import run_daily
         summary = run_daily(settings, keyword_filter=args.keyword,
-                            skip_session_check=args.skip_session_check, log=log)
+                            skip_session_check=args.skip_session_check,
+                            force=args.force, log=log)
         if summary.report:
             log.info("报告已生成（榜池 %d 商品）", summary.report["pool_size"])
         return summary.exit_code()

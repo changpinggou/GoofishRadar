@@ -63,7 +63,7 @@ class TestRunDaily:
     def test_full_chain_writes_store_and_report(self, env):
         settings = env
         two_task_settings(settings)
-        summary = run_daily(settings, skip_session_check=True)
+        summary = run_daily(settings, skip_session_check=True, retry_backoff_seconds=(0, 0))
         store = Store(settings.paths.data_dir / "goofishradar.db")
         try:
             counts = store.counts()
@@ -100,7 +100,7 @@ class TestRunDaily:
             return [ok, bad], False
 
         monkeypatch.setattr(pipeline.SearchCollector, "collect_keywords", fake_collect)
-        summary = run_daily(settings, skip_session_check=True)
+        summary = run_daily(settings, skip_session_check=True, retry_backoff_seconds=(0, 0))
         assert summary.exit_code() == 2
         assert len(summary.ok_keywords) == 1 and len(summary.failed_keywords) == 1
         store = Store(settings.paths.data_dir / "goofishradar.db")
@@ -123,7 +123,7 @@ class TestRunDaily:
                                      pages_attempted=1)], True
 
         monkeypatch.setattr(pipeline.SearchCollector, "collect_keywords", fake_collect)
-        summary = run_daily(settings, skip_session_check=True)
+        summary = run_daily(settings, skip_session_check=True, retry_backoff_seconds=(0, 0))
         assert summary.aborted_by_risk is True
         assert summary.exit_code() == 2
         store = Store(settings.paths.data_dir / "goofishradar.db")
@@ -136,7 +136,7 @@ class TestRunDaily:
     def test_keyword_filter(self, env):
         settings = env
         two_task_settings(settings)
-        summary = run_daily(settings, keyword_filter=["词A"], skip_session_check=True)
+        summary = run_daily(settings, keyword_filter=["词A"], skip_session_check=True, retry_backoff_seconds=(0, 0))
         assert len(summary.results) == 1
         assert summary.results[0].keyword == "词A"
 
@@ -156,7 +156,7 @@ class TestReportCommand:
     def test_report_regenerates_from_existing_db(self, env):
         settings = env
         two_task_settings(settings)
-        run_daily(settings, skip_session_check=True)
+        run_daily(settings, skip_session_check=True, retry_backoff_seconds=(0, 0))
 
         store = Store(settings.paths.data_dir / "goofishradar.db")
         out = generate_report(summary_date(settings), store, settings)
