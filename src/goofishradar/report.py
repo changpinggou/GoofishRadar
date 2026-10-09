@@ -64,7 +64,8 @@ def compare_with_yesterday(store: Store, date_str: str, today_ids: list[str],
 
 # ---- HTML ----
 
-def _render_html(date_str: str, rdict: dict, store: Store, settings: Settings) -> str:
+def _render_html(date_str: str, rdict: dict, store: Store, settings: Settings,
+                 extra_notes: list[str] | None = None) -> str:
     stats = store.quality_stats(date_str)
     cmp_result = compare_with_yesterday(
         store, date_str, [s["item_id"] for s in rdict["overall"]],
@@ -87,7 +88,8 @@ def _render_html(date_str: str, rdict: dict, store: Store, settings: Settings) -
         date=date_str, caliber=rdict["caliber"], stats=stats_vm, cmp=cmp_result,
         overall=rdict["overall"],
         per_keyword=rdict["per_keyword"],
-        rising=rdict["rising"], rising_note=rdict["rising_note"])
+        rising=rdict["rising"], rising_note=rdict["rising_note"],
+        extra_notes=extra_notes or [])
 
 
 # ---- Excel（4 Sheet）----
@@ -170,8 +172,12 @@ def cleanup_old_reports(reports_dir: Path, retain_days: int) -> list[str]:
 # ---- 入口 ----
 
 def generate_report(date_str: str, store: Store, settings: Settings,
-                    rankings: dict | None = None) -> dict:
-    """生成 HTML + Excel 报告。rankings 缺省时从库内现算（T06）。"""
+                    rankings: dict | None = None,
+                    extra_notes: list[str] | None = None) -> dict:
+    """生成 HTML + Excel 报告。rankings 缺省时从库内现算（T06）。
+
+    extra_notes：数据完整性警示（T11：风控中止/预算用尽等），随口径盒置顶展示。
+    """
     cfg = settings.ranking
     full = rankings if rankings is not None else score_day_from_store(
         store, date_str, cfg)
@@ -183,7 +189,7 @@ def generate_report(date_str: str, store: Store, settings: Settings,
     (parsed_dir / "_rankings.json").write_text(
         json.dumps(rdict, ensure_ascii=False), encoding="utf-8")
 
-    html = _render_html(date_str, rdict, store, settings)
+    html = _render_html(date_str, rdict, store, settings, extra_notes=extra_notes)
 
     report_dir = Path(settings.paths.reports_dir) / date_str
     report_dir.mkdir(parents=True, exist_ok=True)

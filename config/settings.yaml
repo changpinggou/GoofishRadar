@@ -14,8 +14,10 @@ limits:
   # 相邻两次页面请求的随机延时区间（秒）。T01 实测单页稳定耗时 6–9s，
   # 默认 8–20（原 PRD 草案 5–15 偏紧，已按实测修订）；最小值 < 5 会收到风控告警。
   page_delay_seconds: [8, 20]
-  max_pages_per_keyword: 3   # 单关键词采集页数；代码硬顶 50，超限自动截断并告警
-  max_pages_per_day: 300     # 单日总页数；代码硬顶 300，超限自动截断并告警
+  max_pages_per_keyword: 3     # 单关键词采集页数；代码硬顶 50，超限自动截断并告警
+  max_pages_per_day: 300       # 单日总页数；代码硬顶 300，超限自动截断并告警
+  retry_backoff_seconds: [60, 300]  # 关键词失败重试退避（秒），仅非风控失败重试
+  risk_cooldown_minutes: 120        # 触发风控后的冷却档位（分钟），期内拒绝一切网络请求
 
 ranking:
   topn_overall: 50           # 总榜 TopN

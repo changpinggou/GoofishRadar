@@ -23,8 +23,7 @@ from .report import generate_report
 from .ranking import score_day_from_store
 from .session import SessionManager
 from .storage import Store
-
-_RETRY_BACKOFF_DEFAULT = (60.0, 300.0)   # 指数退避：1 分钟 / 5 分钟（T09 任务 4）
+from .throttle import RiskControl
 
 
 @dataclass
@@ -88,22 +87,45 @@ def _is_risk_error(error: str | None) -> bool:
 
 def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
               skip_session_check: bool = False, force: bool = False,
-              retry_backoff_seconds: tuple[float, ...] = _RETRY_BACKOFF_DEFAULT,
+              retry_backoff_seconds: tuple[float, ...] | None = None,
               log=None) -> RunSummary:
-    """执行一次完整的每日任务并返回汇总（exit code 由 RunSummary.exit_code() 决定）。"""
+    """执行一次完整的每日任务并返回汇总（exit code 由 RunSummary.exit_code() 决定）。
+
+    retry_backoff_seconds 缺省取 settings.limits.retry_backoff_seconds（T11 统一配置）。
+    """
     log = log or get_logger()
     today = datetime.now().strftime("%Y-%m-%d")
     summary = RunSummary(date=today,
                          started_at=datetime.now().isoformat(timespec="seconds"))
+    if retry_backoff_seconds is None:
+        retry_backoff_seconds = settings.limits.retry_backoff_seconds
     settings.paths.ensure()
+
+    # ---- 0. 风控冷却门控（T11）：冷却期内拒绝发起任何网络请求 ----
+    risk = RiskControl(settings.paths.data_dir,
+                       settings.limits.risk_cooldown_minutes)
+    until = risk.active_until()
+    if until:
+        summary.aborted_by_risk = True
+        summary.error = (f"风控冷却中（至 {until:%H:%M}），"
+                         f"本次跳过全部网络请求（冷却 {settings.limits.risk_cooldown_minutes} 分钟档）")
+        log.warning("ALERT: %s", summary.error)
+        return summary
+
     store = Store(settings.paths.data_dir / "goofishradar.db")
 
     try:
-        # ---- 1. 会话检查（T02 模块；失效即终止，退出码 1）----
+        # ---- 1. 会话检查（T02 模块；失效即终止，退出码 1；风控页触发冷却，退出码 2）----
         if not skip_session_check:
             mgr = SessionManager(user_data_dir=settings.paths.user_data_dir,
                                  marker_path=settings.paths.session_expired_marker)
             verdict = mgr.check(headless=False)
+            if verdict.state.name == "RISK_BLOCKED":
+                risk.trigger(verdict.reason)
+                summary.aborted_by_risk = True
+                summary.error = f"会话检查命中风控拦截：{verdict.reason}（已进入冷却）"
+                log.error("ALERT: %s", summary.error)
+                return summary
             if not verdict.valid:
                 summary.session_invalid = True
                 summary.error = f"会话检查未通过：{verdict.reason}"
@@ -177,14 +199,21 @@ def run_daily(settings: Settings, keyword_filter: list[str] | None = None,
         # ---- 连续失败告警（T09 任务 5：连续 2 天全败 → data/ALERT + 日志）----
         _consecutive_failure_alert(store, today, log)
 
-        # ---- 4. 评分 + 报告（采集部分失败也照常出报告）----
+        # ---- 4. 评分 + 报告（采集部分失败也照常出报告，标注数据完整性）----
+        extra_notes: list[str] = []
+        if aborted:
+            extra_notes.append("风控中止：当日数据不完整（部分完成）")
+        if any(r.error == "daily_budget_exhausted" for r in results):
+            extra_notes.append("单日页数预算用尽：当日数据不完整（部分完成）")
         try:
             rankings = score_day_from_store(store, today, settings.ranking)
-            generate_report(today, store, settings, rankings=rankings)
+            generate_report(today, store, settings, rankings=rankings,
+                            extra_notes=extra_notes or None)
             summary.report = {
                 "pool_size": len(rankings["overall"]),
                 "rising_note": rankings["rising_note"],
                 "weights_applied": rankings["weights_applied"],
+                "extra_notes": extra_notes,
             }
         except Exception as exc:
             summary.report_failed = True

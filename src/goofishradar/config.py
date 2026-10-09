@@ -110,6 +110,8 @@ class LimitsCfg:
     page_delay_seconds: tuple[float, float] = (8.0, 20.0)  # 页间随机延时（T01 实测修订，原 5–15）
     max_pages_per_keyword: int = 3
     max_pages_per_day: int = 300
+    retry_backoff_seconds: tuple[float, float] = (60.0, 300.0)  # 关键词失败重试退避（T11 统一配置）
+    risk_cooldown_minutes: int = 120                            # 风控触发后冷却档位（分钟）
 
 
 @dataclass(slots=True)
@@ -175,7 +177,8 @@ class KeywordTask:
 
 SETTINGS_KEYS = {
     "schedule": {"time", "weekday_time", "weekend_time", "randomize_minutes"},
-    "limits": {"page_delay_seconds", "max_pages_per_keyword", "max_pages_per_day"},
+    "limits": {"page_delay_seconds", "max_pages_per_keyword", "max_pages_per_day",
+               "retry_backoff_seconds", "risk_cooldown_minutes"},
     "ranking": {"topn_overall", "topn_per_keyword", "topn_rising", "weights"},
     "report": {"retain_days"},
     "paths": {"data_dir", "reports_dir", "logs_dir"},
@@ -225,8 +228,25 @@ def _load_limits(sec: dict, warnings: list[str]) -> LimitsCfg:
         warnings.append(f"limits.max_pages_per_day={mpd} 超过硬顶 {HARD_MAX_PAGES_PER_DAY}，已自动截断")
         mpd = HARD_MAX_PAGES_PER_DAY
 
+    backoff = sec.get("retry_backoff_seconds", [60, 300])
+    _expect(isinstance(backoff, (list, tuple)) and len(backoff) == 2,
+            f"limits.retry_backoff_seconds: 应为 [首次退避, 二次退避]，得到 {backoff!r}")
+    b_lo = _as_num(backoff[0], "limits.retry_backoff_seconds[0]")
+    b_hi = _as_num(backoff[1], "limits.retry_backoff_seconds[1]")
+    _expect(0 <= b_lo <= b_hi,
+            f"limits.retry_backoff_seconds: 应满足 0 ≤ 首次 ≤ 二次，得到 [{b_lo}, {b_hi}]")
+
+    cooldown = _as_int(sec.get("risk_cooldown_minutes", 120),
+                       "limits.risk_cooldown_minutes")
+    _expect(cooldown >= 0, f"limits.risk_cooldown_minutes: 不能为负，得到 {cooldown}")
+    if 0 < cooldown < 30:
+        warnings.append(f"limits.risk_cooldown_minutes={cooldown} 偏短（默认 120），"
+                        f"风控状态下短冷却易再次触发")
+
     return LimitsCfg(page_delay_seconds=(lo, hi), max_pages_per_keyword=mpk,
-                     max_pages_per_day=mpd)
+                     max_pages_per_day=mpd,
+                     retry_backoff_seconds=(b_lo, b_hi),
+                     risk_cooldown_minutes=cooldown)
 
 
 def _load_ranking(sec: dict, warnings: list[str]) -> RankingCfg:

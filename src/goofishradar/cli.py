@@ -332,6 +332,13 @@ def main(argv: list[str] | None = None) -> int:
         return 4 if verdict.state is SessionState.RISK_BLOCKED else 10
 
     if args.command == "check":
+        from .throttle import RiskControl
+        risk = RiskControl(settings.paths.data_dir,
+                           settings.limits.risk_cooldown_minutes)
+        until = risk.active_until()
+        if until:
+            log.warning("风控冷却中（至 %s），跳过网络校验", until.strftime("%H:%M"))
+            return 4
         mgr = SessionManager(user_data_dir=settings.paths.user_data_dir,
                              marker_path=settings.paths.session_expired_marker)
         verdict = mgr.check(headless=not args.headless)
@@ -339,7 +346,9 @@ def main(argv: list[str] | None = None) -> int:
             log.info("会话有效（%s）", verdict.reason)
             return 0
         if verdict.state is SessionState.RISK_BLOCKED:
-            log.error("风控拦截：%s —— 请稍后重试或更换网络环境", verdict.reason)
+            risk.trigger(verdict.reason)
+            log.error("风控拦截：%s —— 已进入 %d 分钟冷却", verdict.reason,
+                      settings.limits.risk_cooldown_minutes)
             return 4
         log.error("会话失效：%s —— 请运行 goofishradar login 重新扫码", verdict.reason)
         return 1

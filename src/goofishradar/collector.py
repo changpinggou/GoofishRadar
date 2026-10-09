@@ -24,6 +24,7 @@ from .logsetup import get_logger
 from .parser import ItemRecord, apply_filters, parse_search_payload
 from .paths import DATA_DIR, USER_DATA_DIR
 from .session import VIEWPORT, detect_risk_block
+from .throttle import DailyBudget, GlobalThrottle, RateLimiter, RequestAuditor, RiskControl  # noqa: F401 (RateLimiter 再导出)
 
 SEARCH_URL = "https://www.goofish.com/search?q={kw}"
 
@@ -88,6 +89,12 @@ class SearchCollector:
         self.settings = settings
         self.log = log or get_logger()
         self.limits = settings.limits
+        # T11：全局节流 + 请求审计 + 单日预算 + 风控冷却（全部代码层硬约束）
+        self._audit = RequestAuditor(settings.paths.logs_dir)
+        self._budget = DailyBudget(self._audit, settings.limits.max_pages_per_day)
+        self._throttle = GlobalThrottle(*settings.limits.page_delay_seconds)
+        self._risk = RiskControl(settings.paths.data_dir,
+                                 settings.limits.risk_cooldown_minutes)
 
     # ---- 对外入口 ----
 
@@ -108,6 +115,7 @@ class SearchCollector:
                         results.append(self.collect_keyword(ctx, task, idx, total))
                     except RiskBlockedError as exc:
                         self.log.error("ALERT: 触发风控/验证码，中止本次全部采集：%s", exc)
+                        self._risk.trigger(str(exc))
                         results.append(KeywordRunResult(
                             keyword=task.keyword, error=f"risk_blocked: {exc}"))
                         aborted = True
@@ -117,6 +125,8 @@ class SearchCollector:
                             keyword=task.keyword, error=str(exc)))
             finally:
                 ctx.close()
+        if not aborted:
+            self._risk.clear()   # 全程无风控事件 → 清除冷却标记
         return results, aborted
 
     # ---- 单关键词采集 ----
@@ -129,15 +139,16 @@ class SearchCollector:
         raw_dir.mkdir(parents=True, exist_ok=True)
         parsed_dir.mkdir(parents=True, exist_ok=True)
 
-        pages = self._page_budget(task, DATA_DIR / "raw" / day)
+        pages = self._page_budget(task)
         res = KeywordRunResult(keyword=task.keyword)
         if pages <= 0:
             res.error = "daily_budget_exhausted"
-            self.log.warning("「%s」单日页数预算已用尽，跳过", task.keyword)
+            self.log.warning("「%s」单日页数预算已用尽（已用 %d/%d），跳过",
+                             task.keyword, self._budget.used(),
+                             self._budget.max_pages)
             return res
         started = time.monotonic()
 
-        rate = RateLimiter(*self.limits.page_delay_seconds)
         crawled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         seen_ids: set[str] = set()
         jsonl_path = parsed_dir / f"{sanitize_keyword(task.keyword)}.jsonl"
@@ -166,8 +177,10 @@ class SearchCollector:
         try:
             self.log.info("关键词 %d/%d「%s」开始（≤%d 页，排序 %s）",
                           idx, total, task.keyword, pages, task.sort)
-            page.goto(SEARCH_URL.format(kw=quote(task.keyword)),
-                      wait_until="domcontentloaded", timeout=60_000)
+            url = SEARCH_URL.format(kw=quote(task.keyword))
+            self._throttle.wait()                 # T11：任意相邻请求强制间隔
+            self._audit.record(url)
+            page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             page.wait_for_timeout(6_000)
             self._check_risk(page, task.keyword)
             self._apply_sort(page, task.sort)
@@ -175,6 +188,9 @@ class SearchCollector:
             with open(jsonl_path, "a", encoding="utf-8") as jsonl:
                 for n in range(1, pages + 1):
                     if n > 1:
+                        page_url = f"{url}#page{n}"
+                        self._throttle.wait()
+                        self._audit.record(page_url)
                         if not self._goto_page(page, n):
                             self.log.info("「%s」没有更多结果，提前结束于第 %d 页",
                                           task.keyword, n - 1)
@@ -203,8 +219,8 @@ class SearchCollector:
                                       len(fresh), len(res.items))
 
                     if n < pages:
-                        delay = rate.wait()
-                        self.log.debug("「%s」页间延时 %.1fs", task.keyword, delay)
+                        delay = self._throttle.wait()
+                        self.log.debug("「%s」页间节流 %.1fs", task.keyword, delay)
         finally:
             try:
                 page.remove_listener("response", on_response)
@@ -219,12 +235,10 @@ class SearchCollector:
 
     # ---- 内部 ----
 
-    def _page_budget(self, task: KeywordTask, day_raw_dir: Path) -> int:
-        """单日预算 = max_pages_per_day - 今日已归档页数；再与任务页数取小。"""
-        used = 0
-        if day_raw_dir.exists():
-            used = sum(1 for _ in day_raw_dir.rglob("page_*.json"))
-        left = self.limits.max_pages_per_day - used
+    def _page_budget(self, task: KeywordTask) -> int:
+        """单日预算 = max_pages_per_day - 今日已发请求数（审计日志为唯一事实源）；
+        再与任务页数取小。"""
+        left = self.limits.max_pages_per_day - self._budget.used()
         if left <= 0:
             return 0
         return min(task.max_pages, left)

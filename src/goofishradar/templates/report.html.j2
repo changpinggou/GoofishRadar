@@ -14,6 +14,7 @@
   .caliber { background:#fff7e8; border:1px solid #ffd591; border-radius:8px; padding:10px 14px; margin:0 0 20px; }
   .caliber strong { color:#ad6800; }
   .caliber ul { margin:6px 0 0; padding-left:18px; }
+  .caliber ul.warn { color:#c5423a; font-weight:600; }
   .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
   .card { flex:1 1 150px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
   .card .num { font-size:22px; font-weight:600; }
@@ -47,6 +48,9 @@
   <div class="caliber">
     <strong>口径说明（固定展示）</strong>
     <ul>{% for c in caliber %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% if extra_notes %}
+    <ul class="warn">{% for n in extra_notes %}<li>⚠ {{ n }}</li>{% endfor %}</ul>
+    {% endif %}
   </div>
 
   <div class="cards">
