@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from .config import (
     ConfigError, Settings, enabled_tasks, keyword_add, keyword_remove,
@@ -225,6 +226,16 @@ def main(argv: list[str] | None = None) -> int:
     sched_sub.add_parser("uninstall", help="移除调度")
     sched_sub.add_parser("status", help="查看调度安装状态")
 
+    p_ih = sub.add_parser("item-history", help="商品逐日快照趋势（CSV 输出）")
+    p_ih.add_argument("item_id", help="商品 ID")
+    p_ih.add_argument("--date", default=None, help="参考日（缺省=今天，用于中断判定）")
+    p_ih.add_argument("--out", default=None, help="写入文件（缺省打印到终端）")
+
+    p_arch = sub.add_parser("snapshot-archive",
+                            help="归档超期明细快照（导出 CSV 后清理）")
+    p_arch.add_argument("--days", type=int, default=None,
+                        help="保留天数（缺省=配置 report.retain_days）")
+
     args = parser.parse_args(argv)
     log = get_logger()
 
@@ -258,6 +269,49 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     settings = _load_or_exit(log)
+
+    if args.command == "item-history":
+        settings = _load_or_exit(log)
+        from .storage import Store
+        from .trend import item_trend, trend_to_csv
+        store = Store(settings.paths.data_dir / "goofishradar.db")
+        try:
+            trend = item_trend(store, args.item_id, args.date)
+        finally:
+            store.close()
+        if trend is None:
+            log.error("商品不存在：%s", args.item_id)
+            return 1
+        csv_text = trend_to_csv(trend)
+        if args.out:
+            Path(args.out).write_text(csv_text, encoding="utf-8")
+            log.info("趋势已写入 %s（%d 天，中断=%s）",
+                     args.out, trend.days, trend.interrupted_now)
+        else:
+            print(csv_text, end="")
+            if trend.interrupted_now:
+                log.warning("该商品采集已中断（最后快照 %s）", trend.last_snapshot)
+        return 0
+
+    if args.command == "snapshot-archive":
+        settings = _load_or_exit(log)
+        from .storage import Store
+        from .trend import archive_old_snapshots
+        retain = args.days if args.days is not None else settings.report.retain_days
+        store = Store(settings.paths.data_dir / "goofishradar.db")
+        try:
+            result = archive_old_snapshots(
+                store, retain, Path(settings.paths.data_dir) / "archive")
+        finally:
+            store.close()
+        if result["archived"]:
+            log.info("已归档 %d 条快照（保留 %d 天，截点 %s）→ %s",
+                     result["archived"], retain, result["cutoff"],
+                     result["archive_file"])
+        else:
+            log.info("没有超期快照需要归档（保留 %d 天，截点 %s）",
+                     retain, result["cutoff"])
+        return 0
 
     if args.command == "run":
         from .pipeline import run_daily
