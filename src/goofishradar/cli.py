@@ -1,8 +1,10 @@
-"""GoofishRadar 命令入口（T02：login/check；T03：keyword/config-check；T08 将扩展 run/status/report）。
+"""GoofishRadar 命令入口（T02 login/check；T03 keyword/config-check；T08 run/status/report）。
 
 退出码约定：
+- run：0 成功；1 会话失效；2 采集失败（含风控中止，已成功部分照常入库出报告）；3 报告失败；配置非法加载即退 2
 - login：0 成功（含免扫码复用）；10 扫码超时/失效；4 风控拦截；2 配置非法
 - check：0 有效；1 失效（采集任务应终止）；4 风控拦截；2 配置非法
+- report：0 成功；3 报告失败；2 配置非法
 - config-check：0 有效；1 配置非法
 - keyword：0 成功；1 失败（含配置非法）
 """
@@ -110,6 +112,35 @@ def _cmd_config_check(log) -> int:
     return 0
 
 
+def _cmd_status(log) -> int:
+    from .pipeline import recent_status
+    from .storage import Store
+    from .paths import DATA_DIR
+    settings = _load_or_exit(log)
+    store = Store(settings.paths.data_dir / "goofishradar.db")
+    try:
+        rows = recent_status(store, days=7)
+        counts = store.counts()
+    finally:
+        store.close()
+
+    print("近 7 天运行概况：")
+    if not rows:
+        print("  （暂无运行记录）")
+    else:
+        print(f"  {'日期':<12}{'关键词':<16}{'结果':<14}{'页(成/试)':<10}{'条数':<8}{'耗时':<10}")
+        for r in rows:
+            print(f"  {r['run_date']:<12}{r['keyword']:<16}{r['result']:<14}"
+                  f"{r['pages_ok']}/{r['pages_attempted']:<8}"
+                  f"{r['items_total']:<8}"
+                  f"{(str(r['duration_seconds']) + 's') if r['duration_seconds'] else '—':<10}")
+            if r["error"]:
+                print(f"    └─ {r['error'][:80]}")
+    print(f"\n库内：商品 {counts['items']} | 快照 {counts['snapshots']} | "
+          f"来源关系 {counts['item_keywords']} | 运行记录 {counts['runs']}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="goofishradar", description="GoofishRadar — 闲鱼畅销榜自动化工具")
@@ -142,6 +173,17 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("config-check", help="校验两个配置文件并打印生效值")
 
+    p_run = sub.add_parser("run", help="执行每日任务：会话检查→采集→入库→评分→报告")
+    p_run.add_argument("--keyword", action="append", default=None,
+                       help="仅运行指定关键词（可多次传入）")
+    p_run.add_argument("--skip-session-check", action="store_true",
+                       help=argparse.SUPPRESS)
+
+    sub.add_parser("status", help="近 7 天运行概况与库内计数")
+
+    p_rep = sub.add_parser("report", help="基于已有库内数据（重）出报告")
+    p_rep.add_argument("--date", default=None, help="报告日期（缺省=今天）")
+
     args = parser.parse_args(argv)
     log = get_logger()
 
@@ -151,7 +193,35 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "config-check":
         return _cmd_config_check(log)
 
+    if args.command == "status":
+        return _cmd_status(log)
+
+    if args.command == "report":
+        settings = _load_or_exit(log)
+        from datetime import datetime
+        from .report import generate_report
+        from .storage import Store
+        date_str = args.date or datetime.now().strftime("%Y-%m-%d")
+        store = Store(settings.paths.data_dir / "goofishradar.db")
+        try:
+            out = generate_report(date_str, store, settings)
+        except Exception as exc:
+            log.error("报告生成失败：%s", exc)
+            return 3
+        finally:
+            store.close()
+        log.info("报告已生成：%s | %s", out["html"], out["excel"])
+        return 0
+
     settings = _load_or_exit(log)
+
+    if args.command == "run":
+        from .pipeline import run_daily
+        summary = run_daily(settings, keyword_filter=args.keyword,
+                            skip_session_check=args.skip_session_check, log=log)
+        if summary.report:
+            log.info("报告已生成（榜池 %d 商品）", summary.report["pool_size"])
+        return summary.exit_code()
 
     if args.command == "login":
         mgr = SessionManager(user_data_dir=settings.paths.user_data_dir,

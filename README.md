@@ -23,6 +23,13 @@ uv venv && uv pip install -p .venv/bin/python -e "."
 #    校验会话有效性：有效 exit 0；失效 exit 1（写告警日志 + data/SESSION_EXPIRED 标记）
 .venv/bin/goofishradar check
 
+# 3. 每日任务（T08）：会话检查→采集→入库→评分→报告，一条命令
+.venv/bin/goofishradar run
+
+#    近 7 天运行概况 / 基于库内数据重出报告
+.venv/bin/goofishradar status
+.venv/bin/goofishradar report --date 2026-10-08
+
 # 3. PoC（T01）：免登录首页探测
 .venv/bin/python scripts/poc/poc1_homepage_probe.py
 

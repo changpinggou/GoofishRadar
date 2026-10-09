@@ -72,6 +72,7 @@ class KeywordRunResult:
     items: list[ItemRecord] = field(default_factory=list)
     missing_field_count: dict = field(default_factory=dict)
     error: str | None = None
+    duration_seconds: float | None = None
 
     @property
     def ok(self) -> bool:
@@ -134,6 +135,7 @@ class SearchCollector:
             res.error = "daily_budget_exhausted"
             self.log.warning("「%s」单日页数预算已用尽，跳过", task.keyword)
             return res
+        started = time.monotonic()
 
         rate = RateLimiter(*self.limits.page_delay_seconds)
         crawled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -212,6 +214,7 @@ class SearchCollector:
 
         # 任务筛选（解析后过滤，等效 UI 筛选且更稳）
         res.items = apply_filters(res.items, task)
+        res.duration_seconds = round(time.monotonic() - started, 1)
         return res
 
     # ---- 内部 ----

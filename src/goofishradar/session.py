@@ -91,35 +91,46 @@ def harden_permissions(path: Path) -> None:
 
 
 def _login_text_visible(page) -> bool:
-    for text in LOGIN_TEXTS:
+    """页面是否可见地展示登录入口（T08 实测修正）。
+
+    必须精确匹配 + 可见过滤：已登录页面的隐藏推广文案（如「登录领福利」）会被
+    子串匹配误命中，导致有效会话被误判失效（诊断截图 session_expired_*.png 实录）。
+    """
+    for text in ("亲，请登录", "请登录", "登录"):
         try:
-            if page.get_by_text(text, exact=False).count() > 0:
-                return True
+            loc = page.get_by_text(text, exact=True)
+            for i in range(min(loc.count(), 5)):
+                if loc.nth(i).is_visible():
+                    return True
         except Exception:
             continue
     return False
 
 
 def _click_login(page) -> bool:
-    """点击页头「登录」入口：先按文本候选逐个试可见元素，最后用 JS 精确匹配兜底。
+    """点击页头「登录」入口：先精确匹配可见元素，再子串兜底，最后 JS 精确匹配。
 
-    T02 实测：get_by_text(...).first 常命中不可见元素导致漏点，故遍历候选 + JS 兜底。
+    T02/T08 实测：get_by_text(...).first 常命中不可见或文案过宽的元素，
+    故逐候选遍历（可见性用 is_visible/getClientRects 双保险）+ JS 兜底。
     """
-    for text in LOGIN_TEXTS:
-        try:
-            loc = page.get_by_text(text, exact=False)
-            for i in range(min(loc.count(), 5)):
-                el = loc.nth(i)
-                if el.is_visible():
-                    el.click(timeout=5000)
-                    return True
-        except Exception:
-            continue
+    for exact in (True, False):
+        for text in LOGIN_TEXTS:
+            try:
+                loc = page.get_by_text(text, exact=exact)
+                for i in range(min(loc.count(), 5)):
+                    el = loc.nth(i)
+                    if el.is_visible():
+                        el.click(timeout=5_000)
+                        return True
+            except Exception:
+                continue
     try:
         return page.evaluate("""() => {
+          const vis = e => e.getClientRects().length > 0;
+          const norm = s => (s || '').trim();
           const els = [...document.querySelectorAll('a, button, span, div')];
-          const el = els.find(e =>
-            e.textContent && e.textContent.trim() === '登录' && e.offsetParent !== null);
+          const el = els.find(e => norm(e.textContent) === '登录' && vis(e))
+                  || els.find(e => norm(e.textContent) === '请登录' && vis(e));
           if (el) { el.click(); return true; }
           return false;
         }""")

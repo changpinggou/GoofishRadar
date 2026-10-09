@@ -120,18 +120,20 @@ class TestKeywordRelation:
 
 class TestRecordRunAndQuality:
     def test_record_and_aggregate(self, store):
-        store.upsert_items([make_record("a"), make_record("b")], "2026-10-08")
-        store.record_run("2026-10-08", "iPhone", sort="most_want",
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        store.upsert_items([make_record("a"), make_record("b")], today)
+        store.record_run(today, "iPhone", sort="most_want",
                          pages_attempted=3, pages_ok=3,
                          missing_field_count={"seller_id": 2, "price": 1},
                          duration_seconds=60.0, result="ok")
-        store.record_run("2026-10-08", "乐高", pages_attempted=2, pages_ok=1,
+        store.record_run(today, "乐高", pages_attempted=2, pages_ok=1,
                          pages_degraded=1,
                          missing_field_count={"seller_id": 5}, result="ok")
-        store.record_run("2026-10-09", "iPhone", pages_attempted=1, pages_ok=1,
+        store.record_run("2099-12-31", "iPhone", pages_attempted=1, pages_ok=1,
                          result="ok")
 
-        q = store.quality_stats("2026-10-08")
+        q = store.quality_stats(today)
         assert q.snapshots == 2
         assert q.items_new_today == 2
         assert q.runs == 2
@@ -141,8 +143,8 @@ class TestRecordRunAndQuality:
         assert comp["seller_id"] == round((1 - 7 / 2) * 100, 2)  # 可为负（跨词缺失>快照数），报告层负责口径
         assert comp["title"] == 100.0                             # 无缺失记录视为 100%
 
-        assert store.quality_stats("2026-10-09").runs == 1
-        assert store.quality_stats("2026-10-10").snapshots == 0
+        assert store.quality_stats("2099-12-31").runs == 1
+        assert store.quality_stats("2099-01-01").snapshots == 0
 
 
 class TestImportParsedDay:
