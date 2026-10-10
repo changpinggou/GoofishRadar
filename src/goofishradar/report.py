@@ -34,13 +34,20 @@ _COL_WIDTHS = [6, 16, 46, 9, 9, 9, 9, 9, 14, 10, 8, 14, 40]
 
 def compare_with_yesterday(store: Store, date_str: str, today_ids: list[str],
                            data_dir: Path) -> dict:
-    yesterday = (date.fromisoformat(date_str) - timedelta(days=1)).isoformat()
-    yday_file = data_dir / "parsed" / yesterday / "_rankings.json"
-    if not yday_file.exists():
+    """与最近一次既往榜单存档对比（向前最多回溯 7 天，兼容中断日）。"""
+    parsed_root = data_dir / "parsed"
+    archive_file, compared_date = None, None
+    for i in range(1, 8):
+        d = (date.fromisoformat(date_str) - timedelta(days=i)).isoformat()
+        f = parsed_root / d / "_rankings.json"
+        if f.exists():
+            archive_file, compared_date = f, d
+            break
+    if archive_file is None:
         return {"available": False,
-                "note": f"昨日（{yesterday}）无榜单存档，暂无可比数据（对比自第二个报告日起可用）"}
+                "note": "无既往榜单存档，暂无可比数据（对比自第二个报告日起可用）"}
     yday_ids = [it["item_id"]
-                for it in json.loads(yday_file.read_text(encoding="utf-8"))["overall"]]
+                for it in json.loads(archive_file.read_text(encoding="utf-8"))["overall"]]
     today_set, yday_set = set(today_ids), set(yday_ids)
     new_ids = [i for i in today_ids if i not in yday_set][:20]
     dropped_ids = [i for i in yday_ids if i not in today_set][:20]
@@ -58,7 +65,7 @@ def compare_with_yesterday(store: Store, date_str: str, today_ids: list[str],
                         "item_url": f"https://www.goofish.com/item?id={iid}"})
         return out
 
-    return {"available": True, "yesterday": yesterday,
+    return {"available": True, "yesterday": compared_date,
             "new": info(new_ids), "dropped": info(dropped_ids)}
 
 

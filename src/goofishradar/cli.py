@@ -346,7 +346,9 @@ def main(argv: list[str] | None = None) -> int:
                             skip_session_check=args.skip_session_check,
                             force=args.force, log=log)
         if summary.report:
-            log.info("报告已生成（榜池 %d 商品）", summary.report["pool_size"])
+            pool = summary.report.get("pool_size")
+            if pool is not None:
+                log.info("报告已生成（榜池 %d 商品）", pool)
         return summary.exit_code()
 
     if args.command == "login":

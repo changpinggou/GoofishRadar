@@ -1,35 +1,27 @@
-# =====================================================================
-# GoofishRadar 关键词任务列表（T03）
-# 每个任务 = 一次采集的配置单元。可用 goofishradar keyword add/remove 管理
-# （注意：命令方式会重写本文件并丢失手工注释），或直接编辑本文件。
-# =====================================================================
+# GoofishRadar 关键词任务列表
+# 字段说明：keyword 关键词 / enabled 启用开关 / max_pages 采集页数(硬顶50)
+#           sort 排序(most_want|comprehensive|newest|price_asc|price_desc)
+#           可选筛选：price_min/price_max/stuff(成色)/location(所在地)
 tasks:
-  - keyword: "iPhone"        # 关键词（必填，去重）
-    enabled: true            # 启用开关（false = 保留配置但不采集）
-    max_pages: 3             # 采集页数（硬顶 50，超限截断告警）
-    sort: "most_want"        # 排序：most_want 平台默认综合序（实测无「最多想要」排序项，
-                             #      畅销度评分算自想要数不受影响）/ comprehensive 综合 /
-                             #      recent_active 最近活跃 / newest 最新发布 /
-                             #      price_asc / price_desc
-    price_min: 500           # 可选筛选：价格下限（元）
-    price_max: 8000          # 可选筛选：价格上限（元，须 > price_min）
-
-  - keyword: "Switch游戏机"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"
-
-  - keyword: "乐高"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"
-
-  - keyword: "佳能相机"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"
-
-  - keyword: "山地车"
-    enabled: true
-    max_pages: 3
-    sort: "most_want"
+- keyword: iPhone
+  enabled: true
+  max_pages: 3
+  sort: most_want
+  price_min: 500.0
+  price_max: 8000.0
+- keyword: Switch游戏机
+  enabled: true
+  max_pages: 3
+  sort: most_want
+- keyword: 乐高
+  enabled: true
+  max_pages: 3
+  sort: most_want
+- keyword: 佳能相机
+  enabled: true
+  max_pages: 3
+  sort: most_want
+- keyword: 山地车
+  enabled: true
+  max_pages: 3
+  sort: most_want

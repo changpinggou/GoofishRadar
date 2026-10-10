@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import logging
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -186,8 +187,9 @@ class TestAlertScenarios:
         monkeypatch.setattr(
             pipeline, "send_alerts",
             lambda alerts, s, log=None: captured.extend(alerts))
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         store = Store(env.paths.data_dir / "goofishradar.db")
-        store.record_run("2026-10-08", "iPhone", pages_attempted=1, pages_ok=0,
+        store.record_run(yesterday, "iPhone", pages_attempted=1, pages_ok=0,
                          result="failed", error="x")
         store.close()
         _patch_tasks(monkeypatch, ["iPhone"])

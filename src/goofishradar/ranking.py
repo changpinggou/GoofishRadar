@@ -171,15 +171,22 @@ def build_rankings(groups: dict[str, list[ScoreInput]], today: str, weights: Ran
     all_scored: list[ScoredItem] = []
     weights_applied: dict[str, float] = {}
     notes: list[str] = []
+    group_hist_states: dict[str, bool] = {}
 
     for keyword, inputs in sorted(groups.items()):
         scored, eff, group_notes = _score_one_group(inputs, today, weights)
         per_keyword[keyword] = scored
         all_scored.extend(scored)
         weights_applied[keyword] = eff
+        group_hist_states[keyword] = any(i.prev_snapshots for i in inputs)
         for n in group_notes:
             if n not in notes:
                 notes.append(n)
+
+    # 各任务历史状态不一致时补充澄清（口径备注为并集，避免"首日"标注以偏概全）
+    if len(set(group_hist_states.values())) > 1:
+        notes.append("各关键词任务历史状态不同：权重按任务内商品自身历史独立归并"
+                     "（逐任务有效权重见 weights_applied）")
 
     overall = sorted(all_scored, key=lambda s: (-s.score, -(s.want_count or 0),
                                                 s.item_id))

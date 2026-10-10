@@ -180,6 +180,24 @@ class TestResume:
         assert calls == [["iPhone"]]
         assert summary.exit_code() == 0
 
+    def test_all_done_short_circuits_cleanly(self, settings_env, monkeypatch):
+        """T13 实况发现：全部关键词当日已完成时应干净退出（exit 0），不崩溃。"""
+        settings = settings_env
+        store = Store(settings.paths.data_dir / "goofishradar.db")
+        today = datetime.now().strftime("%Y-%m-%d")
+        store.record_run(today, "iPhone", pages_attempted=1, pages_ok=1,
+                         result="ok")
+        store.close()
+
+        called = []
+        _patch_collect(monkeypatch, called, [([], False)])   # 不应被调用
+        _patch_tasks(monkeypatch, ["iPhone"])
+        summary = pipeline.run_daily(settings, skip_session_check=True,
+                                     retry_backoff_seconds=(0, 0))
+        assert called == []                                  # 零采集
+        assert summary.exit_code() == 0
+        assert summary.report == {"skipped_as_done": ["iPhone"]}
+
 
 class TestRetry:
     def test_failed_keyword_retried_then_merged(self, settings_env, monkeypatch):
@@ -227,7 +245,8 @@ class TestConsecutiveFailureAlert:
             self, settings_env, isolated_data_dir, monkeypatch):
         settings = settings_env
         store = Store(settings.paths.data_dir / "goofishradar.db")
-        store.record_run("2026-10-08", "iPhone", pages_attempted=1, pages_ok=0,
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        store.record_run(yesterday, "iPhone", pages_attempted=1, pages_ok=0,
                          result="failed", error="x")
         store.close()
 
@@ -245,7 +264,8 @@ class TestConsecutiveFailureAlert:
                                         monkeypatch):
         settings = settings_env
         store = Store(settings.paths.data_dir / "goofishradar.db")
-        store.record_run("2026-10-08", "iPhone", pages_attempted=1, pages_ok=0,
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        store.record_run(yesterday, "iPhone", pages_attempted=1, pages_ok=0,
                          result="failed", error="x")
         store.close()
 
