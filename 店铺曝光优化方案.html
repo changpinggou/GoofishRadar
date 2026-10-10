@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>店铺曝光优化方案</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    color: #1f2329; font-size: 10.5pt; line-height: 1.75;
+    line-break: strict; overflow-wrap: break-word;
+  }
+  /* ---------- 封面 ---------- */
+  .cover { page-break-after: always; text-align: left; padding-top: 88pt; }
+  .cover .kicker { font-size: 10pt; letter-spacing: 3pt; color: #b45309; font-weight: 600; }
+  .cover h1 { font-size: 30pt; line-height: 1.3; margin: 14pt 0 6pt; color: #1f2329; }
+  .cover .subtitle { font-size: 13pt; color: #57606a; margin-bottom: 26pt; }
+  .cover .rule { height: 3px; background: #b45309; width: 64pt; margin: 0 0 26pt; }
+  .cover .summary {
+    font-size: 10.5pt; color: #57606a; line-height: 1.9;
+    border-left: 3px solid #e5e6eb; padding-left: 12pt; margin-bottom: 40pt;
+  }
+  .cover .meta { font-size: 10pt; color: #86909c; line-height: 2.1; }
+  .cover .meta b { color: #1f2329; font-weight: 600; }
+  .cover .stats { display: flex; gap: 10pt; margin-top: 30pt; }
+  .cover .stat { flex: 1; border: 0.8pt solid #e5e6eb; border-radius: 6pt; padding: 10pt 12pt; }
+  .cover .stat .n { font-size: 16pt; font-weight: 700; color: #b45309; }
+  .cover .stat .l { font-size: 8.5pt; color: #86909c; }
+  /* ---------- 正文 ---------- */
+  h2 {
+    font-size: 15pt; margin: 22pt 0 8pt; padding-left: 8pt;
+    border-left: 3.5pt solid #b45309; line-height: 1.4;
+    page-break-after: avoid; break-after: avoid;
+  }
+  h3 { font-size: 11.5pt; margin: 14pt 0 6pt; page-break-after: avoid; break-after: avoid; }
+  p { margin: 6pt 0; }
+  strong { font-weight: 600; }
+  ol, ul { margin: 6pt 0; padding-left: 18pt; }
+  li { margin: 3pt 0; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 8pt auto 12pt;
+    font-size: 9.5pt; page-break-inside: auto;
+  }
+  th, td { border: 0.6pt solid #d8dce2; padding: 5pt 8pt; text-align: left; vertical-align: top; }
+  th { background: #f5f6f8; font-weight: 600; white-space: nowrap; }
+  tr { page-break-inside: avoid; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9pt;
+    background: #f5f6f8; border-radius: 3pt; padding: 1pt 4pt; color: #953800;
+  }
+  pre {
+    background: #f7f8fa; border: 0.6pt solid #e5e6eb; border-radius: 6pt;
+    padding: 9pt 12pt; font-size: 8.8pt; line-height: 1.6;
+    page-break-inside: avoid; overflow-wrap: break-word; white-space: pre-wrap;
+  }
+  pre code { background: none; padding: 0; color: #1f2329; }
+  .avoid { page-break-inside: avoid; }
+  .tag {
+    display: inline-block; font-size: 8.5pt; color: #b45309;
+    border: 0.7pt solid #f0c9a0; border-radius: 3pt; padding: 0 5pt; margin-right: 4pt;
+  }
+  .callout {
+    background: #fff7e8; border: 0.7pt solid #ffd591; border-radius: 6pt;
+    padding: 8pt 12pt; margin: 8pt 0; page-break-inside: avoid;
+  }
+  .muted { color: #86909c; font-size: 9pt; }
+  footer { margin-top: 18pt; color: #86909c; font-size: 8.5pt; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<div class="cover">
+  <div class="kicker">GOOFSHRADAR · 数据驱动运营</div>
+  <h1>店铺曝光优化方案</h1>
+  <div class="subtitle">SI未来数科 · 闲鱼个人站（goofish.com/personal）</div>
+  <div class="rule"></div>
+  <div class="summary">
+    基于 2026-10-10 对个人站的实际访问分析、商品详情接口字段实测（浏览量 / 擦亮时间 / 状态），
+    以及 GoofishRadar 雷达库的真实搜索快照数据（10-08 / 10-10 两日、906 条快照），
+    定位「大词有流量、自家零曝光」的核心矛盾，给出个人站设置、商品发布、运营放大三层优化动作，
+    并以雷达快照作为每次优化前后的测量仪表。
+  </div>
+  <div class="meta">
+    <b>分析对象</b>：闲鱼个人站「SI未来数科」（华强北苹果原装屏幕卖家）<br>
+    <b>数据来源</b>：个人站实况访问 · 商品详情 mtop 接口 · 雷达库 906 条搜索快照<br>
+    <b>报告日期</b>：2026-10-10
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n">43 / 90</div><div class="l">大词「iPhone」下屏幕配件占比</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">自家商品在 906 条快照中出现次数</div></div>
+    <div class="stat"><div class="n">13</div><div class="l">在售宝贝（可逐日擦亮）</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">当前粉丝数（起步期）</div></div>
+  </div>
+</div>
+
+<!-- ============ 一、结论摘要 ============ -->
+<h2>一、结论摘要（TL;DR）</h2>
+<ol>
+  <li><strong>大词有流量但自家零曝光</strong>：雷达实测「iPhone」搜索前 90 条结果中<strong>屏幕配件占 43 条</strong>（赛道流量充足），但自家抽样 3 个商品<strong>出现 0 次</strong>，全库 906 条快照中「SI未来数科」商品数 = <strong>0</strong>；</li>
+  <li><strong>三大可修问题</strong>：① 标题用「+」连接（<code>苹果14+Pro+Max</code>）破坏搜索分词、编号占位浪费标题字数；② 首图实拍但杂乱（编号纸入镜、暗背景、部分屏朝下）；③ 粉丝仅 3 个、无关注互动，信用与热度信号薄弱；</li>
+  <li><strong>最大的免费杠杆是每日擦亮</strong>：全部 13 个在售商品逐日擦亮（错峰晚 8 点），配合新品 24 小时流量池（实测自家商品全部显示"24小时内发布"，说明已在吃新品流量，需要用擦亮延续）；</li>
+  <li><strong>用 GoofishRadar 做曝光的测量仪表</strong>：把买家的真实搜索词加进雷达关键词，每日快照自动记录自家商品是否出现、排名第几、想要数日增多少——每次优化动作都用数据验证。</li>
+</ol>
+
+<!-- ============ 二、现状诊断 ============ -->
+<h2>二、现状诊断（实测数据）</h2>
+
+<h3>2.1 个人站页面实况（10-10 访问）</h3>
+<table>
+  <tr><th style="width:18%">维度</th><th>现状</th><th style="width:26%">评价</th></tr>
+  <tr><td>店铺名/认证</td><td>SI未来数科，实人认证 ✓（蓝标）</td><td>良好</td></tr>
+  <tr><td>粉丝/关注</td><td><strong>3 粉丝 / 0 关注</strong></td><td>弱：粉丝数是进店信任的第一信号</td></tr>
+  <tr><td>简介文案</td><td>华强北实体店主、海外供应链、纯原屏、批发、深圳同城包安装</td><td><strong>质量高</strong>（含搜索词与信任词，仅微调）</td></tr>
+  <tr><td>宝贝数</td><td>17（在售 13 / 已售 4）</td><td>规模尚可</td></tr>
+  <tr><td>发布时间</td><td>全部显示"24小时内发布"</td><td>正在吃新品流量池，需擦亮延续</td></tr>
+  <tr><td>促销</td><td>红包减 2 元已配置</td><td>良好</td></tr>
+</table>
+
+<h3>2.2 雷达数据实证</h3>
+<table>
+  <tr><th style="width:42%">事实</th><th>数据</th></tr>
+  <tr><td>大词「iPhone」下屏幕配件供给</td><td>前 90 条中 <strong>43 条</strong>为屏幕类（含"屏"字标题）</td></tr>
+  <tr><td>自家商品在大词下的曝光</td><td>抽样 3 商品出现 <strong>0 次</strong>；全库快照中自家商品 <strong>0 条</strong></td></tr>
+  <tr><td>大词 Top 想要数</td><td>整机 1000~2900 want，配件类竞争者同样在榜</td></tr>
+</table>
+
+<h3>2.3 商品层问题（以标题为例）</h3>
+<p>现标题：<code>包邮 苹果14+Pro+Max原装拆机屏幕（编号102）</code></p>
+<ul>
+  <li><strong>「+」连接破坏分词</strong>：买家搜"苹果14 pro max 原装屏"或"14promax屏幕"时，<code>14+Pro+Max</code> 的连续性可能降低关键词命中；</li>
+  <li><strong>（编号102）占据标题黄金位</strong>：编号是库存管理信息，对买家搜索无价值，却挤占了 30 字标题限额；</li>
+  <li><strong>同质化</strong>：13 个在售标题几乎相同，互相内耗（同一买家搜索下自家多个商品竞争同一位置，且无差异化卖点）；</li>
+  <li><strong>首图</strong>：实拍可信但信息杂乱——编号纸入镜、部分暗背景、个别屏幕朝下（未点亮）。</li>
+</ul>
+
+<!-- ============ 三、平台曝光机制 ============ -->
+<h2>三、平台曝光机制（排序因素）</h2>
+<p class="muted">闲鱼"综合排序"的公开可观测因素（结合 T04 详情接口实测字段 <code>proPolishTime</code> 擦亮时间等）。</p>
+<table>
+  <tr><th style="width:38%">因素</th><th style="width:22%">权重影响</th><th>自家现状</th></tr>
+  <tr><td>关键词相关性（标题/描述/分类）</td><td>高（搜索命中的基础）</td><td>「+」连接 + 编号占位 → 待修</td></tr>
+  <tr><td>擦亮时间（proPolishTime）</td><td>高（同词下越新越靠前）</td><td>未见擦亮动作痕迹 → 最大免费杠杆</td></tr>
+  <tr><td>热度信号（想要数/浏览量/超赞）</td><td>高（正反馈）</td><td>起步期，需要低门槛引导</td></tr>
+  <tr><td>卖家信用（实人/芝麻/好评/退货率）</td><td>中高</td><td>实人 ✓；芝麻信用未见展示</td></tr>
+  <tr><td>商品完善度（成色标签/描述/视频）</td><td>中</td><td>待补视频</td></tr>
+  <tr><td>包邮/红包等服务标签</td><td>中低</td><td>红包 ✓；包邮已在标题（建议改为属性标签）</td></tr>
+  <tr><td>距离（同城加权）</td><td>中</td><td>简介主打"深圳同城包安装"，但页面只显示"广东省"</td></tr>
+</table>
+
+<!-- ============ 四、优化方案 ============ -->
+<h2>四、优化方案（三层，按优先级）</h2>
+
+<h3>L1 个人站设置层（今天即可完成，零成本）</h3>
+<ol>
+  <li><strong>地区改为深圳</strong>：编辑资料 → 地区从"广东省"细化到"深圳"（同城流量 + 与"同城包安装"卖点呼应）；</li>
+  <li><strong>简介微调</strong>（已较好，只补搜索词根）：在现有文案中自然嵌入「原装屏 / 屏幕总成 / 拆机屏 / 苹果换屏」等买家实际搜索词（保持现有信任表达不变）；</li>
+  <li><strong>关注与互粉</strong>：0 关注显得不活跃；关注 20~30 个同行/本地数码号，把粉丝从 3 起步拉起来；每个成交买家引导关注（详见 L3）；</li>
+  <li><strong>补芝麻信用授权</strong>：实人认证已有，芝麻信用分展示是屏幕类目（高客单）最有效的信任信号之一；</li>
+  <li><strong>头像专业化</strong>：当前个人照可换为门店/工位实拍或品牌 Logo（与"实体店主"定位一致）。</li>
+</ol>
+
+<h3>L2 商品层（核心动作，本周内完成）</h3>
+<p><strong>1. 标题重构公式</strong>（去掉编号、去加号、堆真实搜索词）：</p>
+<div class="avoid">
+<pre><code>【公式】品牌词 + 型号全称 + 词根（原装屏/拆机屏/屏幕总成） + 成色/卖点 + 适用场景
+【示例】苹果15ProMax原装拆机屏幕总成 纯原无修 显示完美 维修换屏可用包安装</code></pre>
+<ul>
+  <li>编号移入描述（库存管理不丢）；</li>
+  <li>同型号多件用描述区分成色差异（亮度/色差/编号），标题差异化卖点（如"原彩保留""无压排"）；</li>
+  <li>描述里堆满型号的常见写法变体：<code>15PM / 15 Pro Max / 15promax</code>（买家搜索习惯不一）。</li>
+</ul>
+</div>
+<p><strong>2. 首图重拍标准</strong>：亮背景、屏幕<strong>点亮显示纯色画面</strong>（证明显示正常）、正面朝上、无编号纸杂物；第二张放编号细节图（满足库存管理需求）；</p>
+<p><strong>3. 每日擦亮全部在售商品</strong>（13 个）：错峰在 <strong>20:00–22:00</strong> 逐个擦亮（晚高峰流量 + 随机间隔防规律化）；擦亮是单量级最小的持续曝光杠杆；</p>
+<p><strong>4. 发布时段</strong>：新品/改价安排在 19:00–22:00 发布（吃夜间活跃流量 + 新品 24 小时池）；</p>
+<p><strong>5. 服务标签属性化</strong>：包邮用属性开关而非标题文字（省出 2 字标题位）；继续用红包（已有）；</p>
+<p><strong>6. 补视频</strong>：每件商品一条 10 秒点亮视频（显示均匀度/触摸正常），完善度权重 + 转化率双赢。</p>
+
+<h3>L3 运营与放大层（1–2 周启动）</h3>
+<ol>
+  <li><strong>粉丝运营</strong>：发货包裹放小卡片"关注领屏幕保养清单/旧屏回收"；成交后主动引导关注+好评（已售 4 单的买家逐个回访）；</li>
+  <li><strong>想要转化</strong>：对"想要"未拍的用户主动一键出价/优惠（想要数既是排名权重又是成交线索）；</li>
+  <li><strong>同城打透</strong>：深圳华强北 + 同城包安装是差异化壁垒——描述与首图突出"深圳同城当面装"；同城搜索流量竞争远小于全国词；</li>
+  <li><strong>鱼小铺（若符合开通条件）</strong>：获得店铺货架/分类/装修能力，宝贝 17 件已有分栏经营的基础；</li>
+  <li><strong>付费推广（谨慎）</strong>：平台官方推广工具可小额测试，但<strong>不做任何站外刷单/虚假交易</strong>（合规红线）。</li>
+</ol>
+
+<h3>L4 数据驱动迭代（GoofishRadar 作为测量仪表）</h3>
+<p><strong>原则：每个优化动作前后都要有数据对比，不做无测量的改动。</strong></p>
+<p><strong>1. 排名追踪</strong>：把买家的真实搜索词加入 <code>config/keywords.yaml</code>（每日快照自动记录）：</p>
+<div class="avoid">
+<pre><code>tasks:
+  - keyword: "苹果15promax原装屏"    # 精准长尾（自家主力型号）
+  - keyword: "原装拆机屏"
+  - keyword: "苹果屏幕总成"
+  - keyword: "iphone换屏"
+  - keyword: "苹果14promax屏幕"</code></pre>
+</div>
+<p>每日快照后执行检查（自家 item_id 是否在榜 + 名次）：</p>
+<div class="avoid">
+<pre><code>.venv/bin/goofishradar item-history &lt;自家商品ID&gt;
+# 或按日核对：自家 item_id 是否出现在 data/parsed/{date}/ 对应关键词 JSONL 中</code></pre>
+</div>
+<p><strong>2. A/B 实验</strong>：改标题/换首图前后，用 <code>item-history</code> 对比该商品想要数日增量（Δ1d），7 天为一组；</p>
+<p><strong>3. 竞品校准</strong>：同关键词下 Top 想要数商品的标题/首图/价格即"及格线"，每周对照一次；</p>
+<p><strong>4. 告警已就绪</strong>：<code>low_volume</code>（日采集 &lt;100）与 <code>high_parse_failure</code> 告警保证追踪本身可靠。</p>
+
+<h3>优先级与节奏</h3>
+<table>
+  <tr><th style="width:12%">优先级</th><th>动作</th><th style="width:20%">时点</th></tr>
+  <tr><td>P0</td><td>13 个宝贝逐日擦亮（错峰 20–22 点）；标题去掉编号与加号；地区改深圳</td><td>今天起持续</td></tr>
+  <tr><td>P1</td><td>首图重拍、描述堆型号变体、简介补词根、补芝麻信用</td><td>本周</td></tr>
+  <tr><td>P2</td><td>雷达排名追踪关键词上线、粉丝引导（卡片/回访）、商品视频、鱼小铺开通</td><td>1–2 周</td></tr>
+  <tr><td>P3</td><td>付费推广小额测试、品类扩展决策</td><td>数据验证后</td></tr>
+</table>
+
+<!-- ============ 五、边界与风险 ============ -->
+<h2>五、边界与风险</h2>
+<ol>
+  <li><strong>不刷单、不虚假交易</strong>——与 T11 合规红线同一边界（平台对虚假交易的处罚远大于慢启动的损失）；</li>
+  <li>采集与追踪同样遵守 GoofishRadar 的全局限速与单日预算（新增追踪关键词会占用每日页数预算，建议新增 ≤6 词，预算内腾挪或适度上调 <code>max_pages_per_day</code>）；</li>
+  <li>本方案的效果判断以雷达快照数据为准（想要数日增量、在榜名次），不做无法验证的承诺；平台规则可能变化，动作前以闲鱼官方规则页为准。</li>
+</ol>
+
+<footer>GoofishRadar · 店铺曝光优化方案 · 2026-10-10 · 数据与结论以雷达快照为据</footer>
+
+</body>
+</html>
