@@ -53,6 +53,38 @@ def detect_risk_block(text: str) -> bool:
     return any(m in (text or "") for m in RISK_MARKERS)
 
 
+def clean_stale_browser_locks(user_data_dir: Path, log=None) -> bool:
+    """清除残留的浏览器单例锁（T13 观察期实测：启动超时/崩溃后残留 Singleton*
+    会让下一次 launch_persistent_context 挂起直至超时）。
+
+    安全护栏：仅当当前没有 Chrome for Testing 进程运行时才清理；
+    返回是否清除了锁。
+    """
+    import subprocess
+    try:
+        running = subprocess.run(
+            ["pgrep", "-f", "Chrome for Testing"],
+            capture_output=True, text=True, check=False).stdout.strip()
+        if running:
+            if log:
+                log.debug("检测到浏览器进程运行中，跳过残留锁清理")
+            return False
+    except FileNotFoundError:
+        pass
+    removed = False
+    for name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+        p = Path(user_data_dir) / name
+        if p.is_symlink() or p.exists():
+            try:
+                p.unlink()
+                removed = True
+            except OSError:
+                pass
+    if removed and log:
+        log.warning("已清除残留浏览器锁（上次运行可能异常退出）：%s", user_data_dir)
+    return removed
+
+
 def evaluate_session(
     cookie_names: Iterable[str], login_text_visible: bool, risk_blocked: bool = False,
 ) -> SessionVerdict:
@@ -167,6 +199,7 @@ class SessionManager:
 
     def check(self, headless: bool = True) -> SessionVerdict:
         """轻量校验：headless 访问首页壳，凭 Cookie/登录入口判定（不做搜索，规避风控）。"""
+        clean_stale_browser_locks(self.user_data_dir, self.log)
         with sync_playwright() as p:
             ctx = p.chromium.launch_persistent_context(
                 str(self.user_data_dir), headless=headless, locale="zh-CN",
@@ -192,6 +225,7 @@ class SessionManager:
 
     def login(self, wait_seconds: int | None = None) -> SessionVerdict:
         wait_s = wait_seconds or self.wait_seconds
+        clean_stale_browser_locks(self.user_data_dir, self.log)
         with sync_playwright() as p:
             ctx = p.chromium.launch_persistent_context(
                 str(self.user_data_dir), headless=False, locale="zh-CN",

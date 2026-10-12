@@ -109,6 +109,22 @@ class TestRedact:
         assert "<REDACTED>" in caplog.text
 
 
+# ---- 残留浏览器锁清理（T13 观察期实测缺陷修复）----
+
+class TestCleanStaleLocks:
+    def test_removes_stale_locks(self, tmp_path):
+        from goofishradar.session import clean_stale_browser_locks
+        for name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+            (tmp_path / name).symlink_to("dead-pid-12345")
+        assert clean_stale_browser_locks(tmp_path) is True
+        assert not any((tmp_path / n).exists()
+                       for n in ("SingletonLock", "SingletonSocket", "SingletonCookie"))
+
+    def test_no_locks_returns_false(self, tmp_path):
+        from goofishradar.session import clean_stale_browser_locks
+        assert clean_stale_browser_locks(tmp_path) is False
+
+
 # ---- 权限收紧（T02 任务 4：会话文件 600，目录 700）----
 
 class TestHardenPermissions:

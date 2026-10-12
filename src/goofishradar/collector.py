@@ -23,7 +23,7 @@ from .config import KeywordTask, Settings, enabled_tasks
 from .logsetup import get_logger
 from .parser import ItemRecord, apply_filters, parse_search_payload
 from .paths import DATA_DIR, USER_DATA_DIR
-from .session import VIEWPORT, detect_risk_block
+from .session import VIEWPORT, clean_stale_browser_locks, detect_risk_block
 from .throttle import DailyBudget, GlobalThrottle, RateLimiter, RequestAuditor, RiskControl  # noqa: F401 (RateLimiter 再导出)
 
 SEARCH_URL = "https://www.goofish.com/search?q={kw}"
@@ -104,6 +104,7 @@ class SearchCollector:
         aborted = False
         active = enabled_tasks(tasks)
         total = len(active)
+        clean_stale_browser_locks(USER_DATA_DIR, self.log)
         with sync_playwright() as p:
             ctx = p.chromium.launch_persistent_context(
                 str(USER_DATA_DIR), headless=False, locale="zh-CN", viewport=VIEWPORT)
