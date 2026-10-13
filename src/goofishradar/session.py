@@ -253,15 +253,24 @@ class SessionManager:
                 self.log.info("请在浏览器窗口中用闲鱼/淘宝 App 扫码登录（最长等待 %d 秒）...", wait_s)
 
                 deadline = time.monotonic() + wait_s
+                confirmed = 0
                 while time.monotonic() < deadline:
                     if self._has_user_cookie(ctx):
                         page.goto(HOME_URL, wait_until="domcontentloaded", timeout=60_000)
-                        page.wait_for_timeout(4000)
+                        page.wait_for_timeout(4_000)
                         verdict = self._verdict_from(page, ctx)
                         self._debug_screenshot(page, verdict)
                         if verdict.valid:
-                            self.log.info("扫码登录成功，会话已持久化")
-                            break
+                            # T13 实测：扫码后未在手机点「确认登录」时 Cookie 也会出现，
+                            # 会话随后被平台回收。连续两次（间隔 3 秒）判定有效才认定成功。
+                            confirmed += 1
+                            if confirmed >= 2:
+                                self.log.info("扫码登录成功，会话已持久化")
+                                break
+                        else:
+                            confirmed = 0
+                    else:
+                        confirmed = 0
                     time.sleep(3)
                 else:
                     verdict = SessionVerdict(SessionState.EXPIRED,
