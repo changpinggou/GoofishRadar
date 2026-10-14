@@ -101,8 +101,6 @@ def _cmd_config_check(log) -> int:
         log.warning("配置：%s", w)
     lim, rk = settings.limits, settings.ranking
     print("✅ 配置合法，生效值：")
-    print(f"  执行时刻: 工作日 {settings.schedule.resolve_time(False)} / "
-          f"周末 {settings.schedule.resolve_time(True)}（随机 ±{settings.schedule.randomize_minutes} 分钟）")
     print(f"  延时: {lim.page_delay_seconds[0]}–{lim.page_delay_seconds[1]}s/页 | "
           f"单关键词 ≤ {lim.max_pages_per_keyword} 页 | 单日 ≤ {lim.max_pages_per_day} 页")
     print(f"  TopN: 总榜 {rk.topn_overall} / 分类榜 {rk.topn_per_keyword} / 飙升榜 {rk.topn_rising}")
@@ -111,39 +109,6 @@ def _cmd_config_check(log) -> int:
     print(f"  报告保留: {settings.report.retain_days} 天 | 数据目录: {settings.paths.data_dir}")
     print(f"  关键词任务: {len(tasks)} 个（启用 {len(enabled_tasks(tasks))} 个）")
     return 0
-
-
-def _cmd_schedule(args, log) -> int:
-    from pathlib import Path
-    from . import scheduler
-    if args.sched_command == "status":
-        exists = scheduler.plist_path().exists()
-        loaded = scheduler.is_loaded()
-        print(f"plist: {scheduler.plist_path()} {'存在' if exists else '不存在'}")
-        print(f"launchd 加载: {'是' if loaded else '否'}")
-        if exists:
-            import plistlib
-            data = plistlib.loads(scheduler.plist_path().read_bytes())
-            print(f"触发时刻: 每天 {data['StartCalendarInterval']['Hour']:02d}:"
-                  f"{data['StartCalendarInterval']['Minute']:02d}（实际执行由错峰入口二次校正）")
-            print(f"日志: {data['StandardOutPath']}")
-        return 0 if exists and loaded else 1
-
-    settings = _load_or_exit(log)
-    if args.sched_command == "install":
-        pfile = scheduler.install_schedule(settings)
-        hour, minute = scheduler.earliest_fire(settings)
-        log.info("调度已安装：%s（每天 %02d:%02d 拉起，错峰入口按工作日/周末时刻 ±%d 分钟执行）",
-                 pfile, hour, minute, settings.schedule.randomize_minutes)
-        log.info("launchd 日志: %s", Path(settings.paths.logs_dir) / "launchd_daily.log")
-        return 0
-    if args.sched_command == "uninstall":
-        if scheduler.uninstall_schedule():
-            log.info("调度已移除")
-            return 0
-        log.warning("未发现已安装的调度")
-        return 1
-    return 2
 
 
 def _cmd_status(log) -> int:
@@ -247,12 +212,6 @@ def main(argv: list[str] | None = None) -> int:
     p_rep = sub.add_parser("report", help="基于已有库内数据（重）出报告")
     p_rep.add_argument("--date", default=None, help="报告日期（缺省=今天）")
 
-    p_sched = sub.add_parser("schedule", help="每日定时调度（macOS launchd）")
-    sched_sub = p_sched.add_subparsers(dest="sched_command", required=True)
-    sched_sub.add_parser("install", help="安装/刷新调度（幂等）")
-    sched_sub.add_parser("uninstall", help="移除调度")
-    sched_sub.add_parser("status", help="查看调度安装状态")
-
     p_ih = sub.add_parser("item-history", help="商品逐日快照趋势（CSV 输出）")
     p_ih.add_argument("item_id", help="商品 ID")
     p_ih.add_argument("--date", default=None, help="参考日（缺省=今天，用于中断判定）")
@@ -268,9 +227,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "keyword":
         return _cmd_keyword(args)
-
-    if args.command == "schedule":
-        return _cmd_schedule(args, log)
 
     if args.command == "config-check":
         return _cmd_config_check(log)

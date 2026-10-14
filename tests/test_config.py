@@ -15,7 +15,7 @@ from goofishradar.config import (
     load_settings,
 )
 
-SETTINGS_KEYS = ("schedule", "limits", "ranking", "report", "paths")
+SETTINGS_KEYS = ("limits", "ranking", "report", "paths")
 
 
 def write_yaml(path, obj):
@@ -26,7 +26,6 @@ def write_yaml(path, obj):
 
 def default_settings_data() -> dict:
     return {
-        "schedule": {"time": "08:00", "randomize_minutes": 15},
         "limits": {"page_delay_seconds": [8, 20], "max_pages_per_keyword": 3,
                    "max_pages_per_day": 300},
         "ranking": {"topn_overall": 50, "topn_per_keyword": 20, "topn_rising": 20,
@@ -49,13 +48,11 @@ class TestLoadSettings:
         assert any("默认值" in w for w in warnings)
         assert settings.limits.max_pages_per_day == 300
         assert settings.limits.page_delay_seconds == (8.0, 20.0)
-        assert settings.schedule.time == "08:00"
 
     def test_yaml_edit_takes_effect_without_code_change(self, tmp_path):
         data = default_settings_data()
         data["ranking"]["topn_overall"] = 77
         data["limits"]["page_delay_seconds"] = [10, 25]
-        data["schedule"]["weekend_time"] = "09:30"
         path = tmp_path / "settings.yaml"
         write_yaml(path, data)
 
@@ -63,8 +60,6 @@ class TestLoadSettings:
         assert warnings == []
         assert settings.ranking.topn_overall == 77
         assert settings.limits.page_delay_seconds == (10.0, 25.0)
-        assert settings.schedule.resolve_time(weekend=True) == "09:30"
-        assert settings.schedule.resolve_time(weekend=False) == "08:00"
 
     def test_hard_cap_truncates_pages_and_warns(self, tmp_path):
         data = default_settings_data()
@@ -93,13 +88,14 @@ class TestLoadSettings:
             load_settings(path)
         assert "limits.max_pages_per_day" in str(ei.value)
 
-    def test_bad_time_format_and_range(self, tmp_path):
+    def test_schedule_section_is_unknown_key(self, tmp_path):
+        """定时调度已移除（仅手动运行）：遗留 schedule 节按未知配置项告警并忽略。"""
         data = default_settings_data()
-        data["schedule"]["time"] = "25:00"
-        path = write_yaml(tmp_path / "s.yaml", data) or tmp_path / "s.yaml"
-        with pytest.raises(ConfigError) as ei:
-            load_settings(path)
-        assert "schedule.time" in str(ei.value)
+        data["schedule"] = {"time": "08:00"}
+        settings, warnings = load_settings(write_yaml(tmp_path / "s.yaml", data)
+                                           or tmp_path / "s.yaml")
+        assert not hasattr(settings, "schedule")
+        assert any("settings.schedule" in w and "未知" in w for w in warnings)
 
     def test_weights_must_sum_to_one(self, tmp_path):
         data = default_settings_data()

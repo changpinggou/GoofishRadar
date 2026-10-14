@@ -1,10 +1,10 @@
 # GoofishRadar — 闲鱼畅销商品排行榜自动化工具
 
-> GoofishRadar：一台每天对闲鱼（Goofish）全域做"雷达扫描"的自动化工具——
-> 定时采集在售商品热度，自动生成畅销榜总榜、分类榜与热度飙升榜。
+> GoofishRadar：一台对闲鱼（Goofish）全域做"雷达扫描"的自动化工具——
+> 采集在售商品热度，自动生成畅销榜总榜、分类榜与热度飙升榜。
 
-每日定时采集闲鱼（www.goofish.com）在售商品数据，基于「想要数 / 浏览量 / 日增量」计算畅销度评分，
-自动生成总榜、分类榜与热度飙升榜。
+手动运行采集闲鱼（www.goofish.com）在售商品数据，基于「想要数 / 浏览量 / 日增量」计算畅销度评分，
+自动生成总榜、分类榜与热度飙升榜。**仅支持手动运行，不含任何定时/开机自动调度。**
 
 - 需求文档：[闲鱼畅销榜自动化工具-需求文档.md](./闲鱼畅销榜自动化工具-需求文档.md)
 - 需求单：[闲鱼畅销榜自动化工具-需求单.md](./闲鱼畅销榜自动化工具-需求单.md)
@@ -33,22 +33,16 @@ uv venv && uv pip install -p .venv/bin/python -e "."
 .venv/bin/goofishradar status
 .venv/bin/goofishradar report --date 2026-10-08
 
-# 4. 每日定时调度（T09）：每天 08:00±15 分钟自动运行（工作日/周末时刻可在配置区分）
-.venv/bin/goofishradar schedule install      # 安装/刷新（幂等）
-.venv/bin/goofishradar schedule status       # 查看安装状态与日志路径
-.venv/bin/goofishradar schedule uninstall    # 移除
-#    断点续采：当日已成功关键词重跑时自动跳过；run --force 强制重采
-
-# 3. PoC（T01）：免登录首页探测
+# 4. PoC（T01）：免登录首页探测
 .venv/bin/python scripts/poc/poc1_homepage_probe.py
 
-# 4. PoC（T01）：搜索字段核对（会弹出浏览器窗口）
+# 5. PoC（T01）：搜索字段核对（会弹出浏览器窗口）
 .venv/bin/python scripts/poc/poc2_login_search_probe.py --keyword "iPhone"
 
-# 5. 分析字段核对结果
+# 6. 分析字段核对结果
 .venv/bin/python scripts/poc/poc3_analyze.py
 
-# 6. 真实采集冒烟（T04，弹出浏览器窗口，登录态必须有效）
+# 7. 真实采集冒烟（T04，弹出浏览器窗口，登录态必须有效）
 .venv/bin/python scripts/smoke_t04.py --keywords iPhone --pages 1
 ```
 
@@ -62,7 +56,7 @@ uv venv && uv pip install -p .venv/bin/python -e "."
 - [x] **仅公开数据**：只采集登录后公开可见的搜索结果列表页，不访问任何需额外权限的内容；
 - [x] **仅个人自用**：原始样本、会话、数据库均本地留存且 gitignored，不对外分发（报告含固定提示）；
 - [x] **全局限速硬约束**：任意相邻页面请求间隔 ≥ 配置区间（GlobalThrottle 强制，跨关键词生效）；单日页数硬上限 300（代码层截断，配置不可突破）；请求逐条审计（`logs/request_audit_*.jsonl` 可复核间隔）；
-- [x] **错峰启动**：每日调度在配置时刻 ±15 分钟内随机执行（工作日/周末可区分）；
+- [x] **仅手动运行**：不含定时/自动调度（原 launchd 调度已移除），每次采集均由人工手动触发；
 - [x] **仅 headed 真实浏览器**：采集全程有头 Chromium + 真实登录会话；
 - [x] **日志脱敏**：Cookie 键值/请求头/长令牌一律打码（RedactFilter），实测无 Cookie 明文。
 

@@ -44,7 +44,7 @@ tasks:
 .venv/bin/goofishradar config-check            # 校验配置并打印生效值
 ```
 
-全局参数（执行时刻、页数上限、TopN、评分权重等）在 `config/settings.yaml`，同样改文件即生效。
+全局参数（页数上限、TopN、评分权重等）在 `config/settings.yaml`，同样改文件即生效。
 
 ### 第 3 步：运行与查看报告
 
@@ -56,16 +56,16 @@ open reports/$(date +%F)/report.html
 报告内容：**总榜 Top50 / 每关键词 Top20 / 热度飙升榜**，含价格、想要数±日增量、
 评分、卖家、所在地、状态，可点击标题跳转闲鱼；同目录 `rankings.xlsx` 为 4 Sheet Excel。
 
-## 三、每日自动化（推荐）
+## 三、运行方式（仅手动运行）
+
+本工具**不会每日自动运行**——定时调度功能已移除，也没有任何开机自启动，
+只有你手动执行 `run` 时才会采集：
 
 ```bash
-.venv/bin/goofishradar schedule install     # 每天 08:00±15 分钟自动运行
-.venv/bin/goofishradar schedule status      # 查看安装状态
-.venv/bin/goofishradar schedule uninstall   # 移除
+.venv/bin/goofishradar run          # 手动触发一次完整采集
 ```
 
-- 执行时刻与工作日/周末区分在 `config/settings.yaml` 的 `schedule:`；
-- 调度日志：`logs/launchd_daily.log`（Mac 关机/睡眠错过 08:00 时，唤醒后会补跑）；
+- 建议每天固定时间手动跑一次：想要数/浏览量的日增量与飙升榜依赖每日快照的连续性；
 - **断点续采**：当日已成功关键词重跑时自动跳过（`run --force` 强制重采）。
 
 ## 四、日常运维命令

@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -21,8 +20,6 @@ HARD_MAX_PAGES_PER_KEYWORD = 50   # 代码硬顶：单关键词页数（FR-10）
 HARD_MAX_PAGES_PER_DAY = 300      # 代码硬顶：单日总页数（FR-10）
 ALLOWED_SORTS = ("most_want", "comprehensive", "recent_active", "newest",
                  "price_asc", "price_desc")
-
-_HHMM = re.compile(r"^(\d{1,2}):(\d{2})$")
 
 
 class ConfigError(ValueError):
@@ -58,15 +55,6 @@ def _as_bool(v: Any, where: str) -> bool:
     return v
 
 
-def _as_hhmm(v: Any, where: str) -> str:
-    s = _as_str(v, where)
-    m = _HHMM.match(s)
-    _expect(m is not None, f"{where}: 时刻格式应为 HH:MM，得到 {v!r}")
-    h, mi = int(m.group(1)), int(m.group(2))  # type: ignore[union-attr]
-    _expect(0 <= h < 24 and 0 <= mi < 60, f"{where}: 时刻超出范围，得到 {v!r}")
-    return f"{h:02d}:{mi:02d}"
-
-
 def _parse_yaml(path: Path) -> Any:
     try:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -93,17 +81,6 @@ def _warn_unknown_keys(data: dict, known: set[str], prefix: str,
 
 
 # ---- 数据模型 ----
-
-@dataclass(slots=True)
-class ScheduleCfg:
-    time: str = "08:00"                 # 每日默认执行时刻
-    weekday_time: str | None = None     # 工作日时刻（缺省用 time）
-    weekend_time: str | None = None     # 周末时刻（缺省用 time）
-    randomize_minutes: int = 15         # 启动随机化窗口（±分钟）
-
-    def resolve_time(self, weekend: bool) -> str:
-        return (self.weekend_time if weekend else self.weekday_time) or self.time
-
 
 @dataclass(slots=True)
 class LimitsCfg:
@@ -164,7 +141,6 @@ class NotifyCfg:
 
 @dataclass(slots=True)
 class Settings:
-    schedule: ScheduleCfg = field(default_factory=ScheduleCfg)
     limits: LimitsCfg = field(default_factory=LimitsCfg)
     ranking: RankingCfg = field(default_factory=RankingCfg)
     report: ReportCfg = field(default_factory=ReportCfg)
@@ -190,7 +166,6 @@ class KeywordTask:
 # ---- settings.yaml 加载 ----
 
 SETTINGS_KEYS = {
-    "schedule": {"time", "weekday_time", "weekend_time", "randomize_minutes"},
     "limits": {"page_delay_seconds", "max_pages_per_keyword", "max_pages_per_day",
                "retry_backoff_seconds", "risk_cooldown_minutes"},
     "ranking": {"topn_overall", "topn_per_keyword", "topn_rising", "weights"},
@@ -204,20 +179,6 @@ _WEIGHT_FIELD = {
     "want_count": "weight_want_count", "view_count": "weight_view_count",
     "want_delta_7d": "weight_want_delta_7d", "view_delta_7d": "weight_view_delta_7d",
 }
-
-
-def _load_schedule(sec: dict, warnings: list[str]) -> ScheduleCfg:
-    cfg = ScheduleCfg(time=_as_hhmm(sec.get("time", "08:00"), "schedule.time"))
-    if "weekday_time" in sec:
-        cfg.weekday_time = _as_hhmm(sec["weekday_time"], "schedule.weekday_time")
-    if "weekend_time" in sec:
-        cfg.weekend_time = _as_hhmm(sec["weekend_time"], "schedule.weekend_time")
-    rm = _as_int(sec.get("randomize_minutes", 15), "schedule.randomize_minutes")
-    _expect(0 <= rm <= 120, f"schedule.randomize_minutes: 应在 0–120 之间，得到 {rm}")
-    if rm > 30:
-        warnings.append(f"schedule.randomize_minutes={rm} 偏大（默认 15），请确认")
-    cfg.randomize_minutes = rm
-    return cfg
 
 
 def _load_limits(sec: dict, warnings: list[str]) -> LimitsCfg:
@@ -352,7 +313,6 @@ def load_settings(path: Path | None = None) -> tuple[Settings, list[str]]:
         _warn_unknown_keys(data, set(SETTINGS_KEYS), "settings", warnings)
 
     return Settings(
-        schedule=_load_schedule(_section(data, "schedule", warnings), warnings),
         limits=_load_limits(_section(data, "limits", warnings), warnings),
         ranking=_load_ranking(_section(data, "ranking", warnings), warnings),
         report=ReportCfg(retain_days=_as_int(
